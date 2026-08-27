@@ -1,184 +1,290 @@
-.counter {
-  font-size: 16px;
-  padding: 5px 10px;
-  border-radius: 5px;
-  color: var(--accent);
-  background: var(--accent-bg);
-  border: 2px solid transparent;
-  transition: border-color 0.3s;
-  margin-bottom: 24px;
-
-  &:hover {
-    border-color: var(--accent-border);
-  }
-  &:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-  }
+/* ===== Tema oscuro App Store de GitHub ===== */
+:root {
+  --bg: #121212;
+  --card: #1e1e1e;
+  --card-hover: #262626;
+  --text: #f4f4f5;
+  --text-muted: #a1a1aa;
+  --accent: #4d7cff;        /* azul eléctrico */
+  --accent-strong: #2f5bff;
+  --accent-glow: rgba(77, 124, 255, 0.45);
+  --border: #2c2c2c;
+  --danger: #ffb454;
 }
 
+* {
+  box-sizing: border-box;
+}
+
+.app {
+  min-height: 100vh;
+  background:
+    radial-gradient(900px 500px at 50% -10%, rgba(77, 124, 255, 0.12), transparent 60%),
+    var(--bg);
+  color: var(--text);
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  padding: 48px 24px 80px;
+}
+
+.app-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* ===== HERO / BUSCADOR ===== */
 .hero {
-  position: relative;
+  text-align: center;
+  margin-bottom: 48px;
+  padding-top: 24px;
+}
 
-  .base,
-  .framework,
-  .vite {
-    inset-inline: 0;
-    margin: 0 auto;
-  }
+.hero-title {
+  font-size: clamp(2rem, 5vw, 3.25rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0 0 14px;
+  background: linear-gradient(180deg, #ffffff 0%, #c9d4ff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
 
-  .base {
-    width: 170px;
-    position: relative;
-    z-index: 0;
-  }
+.hero-subtitle {
+  color: var(--text-muted);
+  font-size: 1.05rem;
+  margin: 0 0 32px;
+}
 
-  .framework,
-  .vite {
-    position: absolute;
-  }
+.searchbar {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  max-width: 640px;
+  margin: 0 auto;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 8px 8px 8px 22px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+  transition: border-color 0.25s, box-shadow 0.25s;
+}
 
-  .framework {
-    z-index: 1;
-    top: 34px;
-    height: 28px;
-    transform: perspective(2000px) rotateZ(300deg) rotateX(44deg) rotateY(39deg)
-      scale(1.4);
-  }
+.searchbar:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-glow), 0 8px 30px rgba(0, 0, 0, 0.4);
+}
 
-  .vite {
-    z-index: 0;
-    top: 107px;
-    height: 26px;
-    width: auto;
-    transform: perspective(2000px) rotateZ(300deg) rotateX(40deg) rotateY(39deg)
-      scale(0.8);
+.search-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 1.05rem;
+  padding: 10px 4px;
+}
+
+.search-input::placeholder {
+  color: #6b6b73;
+}
+
+.search-button {
+  flex: 0 0 auto;
+  border: none;
+  cursor: pointer;
+  border-radius: 999px;
+  padding: 0 28px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(180deg, var(--accent) 0%, var(--accent-strong) 100%);
+  box-shadow: 0 4px 16px var(--accent-glow);
+  transition: transform 0.15s, box-shadow 0.2s, filter 0.2s;
+}
+
+.search-button:hover:not(:disabled) {
+  filter: brightness(1.08);
+  box-shadow: 0 6px 22px var(--accent-glow);
+}
+
+.search-button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.search-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ===== BANNER (modo mock / error) ===== */
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 640px;
+  margin: 0 auto 28px;
+  padding: 12px 18px;
+  border-radius: 12px;
+  background: rgba(255, 180, 84, 0.1);
+  border: 1px solid rgba(255, 180, 84, 0.35);
+  color: var(--danger);
+  font-size: 0.92rem;
+}
+
+.banner-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--danger);
+  box-shadow: 0 0 8px var(--danger);
+  flex: 0 0 auto;
+}
+
+/* ===== LOADING ===== */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: 1rem;
+  padding: 60px 0;
+}
+
+.spinner {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 
-#center {
+/* ===== GRID DE RESULTADOS ===== */
+.grid-resultados {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 24px;
+}
+
+/* ===== TARJETA ===== */
+.card {
   display: flex;
   flex-direction: column;
-  gap: 25px;
-  place-content: center;
-  place-items: center;
-  flex-grow: 1;
-
-  @media (max-width: 1024px) {
-    padding: 32px 20px 24px;
-    gap: 18px;
-  }
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 24px;
+  transition: transform 0.2s, border-color 0.2s, background 0.2s;
 }
 
-#next-steps {
-  display: flex;
-  border-top: 1px solid var(--border);
-  text-align: left;
-
-  & > div {
-    flex: 1 1 0;
-    padding: 32px;
-    @media (max-width: 1024px) {
-      padding: 24px 20px;
-    }
-  }
-
-  .icon {
-    margin-bottom: 16px;
-    width: 22px;
-    height: 22px;
-  }
-
-  @media (max-width: 1024px) {
-    flex-direction: column;
-    text-align: center;
-  }
+.card:hover {
+  transform: translateY(-4px);
+  border-color: var(--accent);
+  background: var(--card-hover);
 }
 
-#docs {
-  border-right: 1px solid var(--border);
-
-  @media (max-width: 1024px) {
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-  }
+.card-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin: 0 0 10px;
+  color: var(--text);
+  line-height: 1.2;
 }
 
-#next-steps ul {
+.card-value {
+  margin: 0 0 18px;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  line-height: 1.55;
+  flex: 1;
+}
+
+.card-reqs {
   list-style: none;
-  padding: 0;
+  margin: 0 0 18px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
   display: flex;
+  flex-direction: column;
   gap: 8px;
-  margin: 32px 0 0;
-
-  .logo {
-    height: 18px;
-  }
-
-  a {
-    color: var(--text-h);
-    font-size: 16px;
-    border-radius: 6px;
-    background: var(--social-bg);
-    display: flex;
-    padding: 6px 12px;
-    align-items: center;
-    gap: 8px;
-    text-decoration: none;
-    transition: box-shadow 0.3s;
-
-    &:hover {
-      box-shadow: var(--shadow);
-    }
-    .button-icon {
-      height: 18px;
-      width: 18px;
-    }
-  }
-
-  @media (max-width: 1024px) {
-    margin-top: 20px;
-    flex-wrap: wrap;
-    justify-content: center;
-
-    li {
-      flex: 1 1 calc(50% - 8px);
-    }
-
-    a {
-      width: 100%;
-      justify-content: center;
-      box-sizing: border-box;
-    }
-  }
 }
 
-#spacer {
-  height: 88px;
-  border-top: 1px solid var(--border);
-  @media (max-width: 1024px) {
-    height: 48px;
-  }
+.card-req {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: #d4d4d8;
 }
 
-.ticks {
-  position: relative;
+.req-bullet {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+  padding-top: 4px;
+  font-size: 0.88rem;
+}
+
+.card-stars {
+  color: #ffd166;
+  font-weight: 600;
+}
+
+.card-update {
+  color: var(--text-muted);
+}
+
+.install-button {
   width: 100%;
+  border: none;
+  cursor: pointer;
+  border-radius: 12px;
+  padding: 13px 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(180deg, var(--accent) 0%, var(--accent-strong) 100%);
+  box-shadow: 0 4px 14px var(--accent-glow);
+  transition: filter 0.2s, transform 0.15s, box-shadow 0.2s;
+}
 
-  &::before,
-  &::after {
-    content: '';
-    position: absolute;
-    top: -4.5px;
-    border: 5px solid transparent;
-  }
+.install-button:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 6px 22px var(--accent-glow);
+}
 
-  &::before {
-    left: 0;
-    border-left-color: var(--border);
+.install-button:active {
+  transform: translateY(1px);
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 520px) {
+  .searchbar {
+    flex-direction: column;
+    border-radius: 18px;
+    padding: 12px;
   }
-  &::after {
-    right: 0;
-    border-right-color: var(--border);
+  .search-input {
+    padding: 8px 6px;
+  }
+  .search-button {
+    width: 100%;
+    padding: 12px 0;
   }
 }
