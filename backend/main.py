@@ -79,8 +79,11 @@ if AI_PROVIDER == "gemini" and AI_API_KEY and google_genai is not None:
 else:
     GEMINI_CLIENT = None
 
+# AQUI ESTA EL CAMBIO DE CORS APLICADO
 CORS_ORIGINS = [
-    o.strip() for o in os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",") if o.strip()
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "https://app-repositorio-github-one.vercel.app"
 ]
 
 GITHUB_API = "https://api.github.com"
