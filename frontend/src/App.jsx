@@ -9,7 +9,7 @@ import Pagination from './components/ui/pagination';
 import Modal from './components/ui/modal';
 import ExpandablePitch from './components/ui/expandable-pitch';
 
-const API_URL = 'http://127.0.0.1:8000/api/buscar-soluciones';
+const API_URL = 'https://app-repositorio-github.onrender.com/api/buscar-soluciones';
 
 const GLOBAL_STATS = [
   { label: 'Repositorios Activos', value: '+20,430' },
