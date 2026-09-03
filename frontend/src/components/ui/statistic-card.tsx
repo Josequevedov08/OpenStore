@@ -20,14 +20,14 @@ export default function StatisticCard1({
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center rounded-2xl border border-white/10 bg-zinc-900 px-4 py-5 text-center transition-colors hover:border-white/20",
+        "flex flex-col items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-5 text-center transition-colors hover:border-[var(--border-strong)]",
         className,
       )}
     >
-      <span className="text-2xl font-extrabold text-white md:text-3xl">
+      <span className="text-2xl font-extrabold text-[var(--text)] md:text-3xl">
         {value}
       </span>
-      <span className="mt-1 text-xs font-medium uppercase tracking-wide text-zinc-400">
+      <span className="mt-1 text-xs font-medium uppercase tracking-wide text-[var(--text-dim)]">
         {label}
       </span>
     </div>

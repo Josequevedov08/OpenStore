@@ -24,7 +24,7 @@ export default function ToggleGroup({
   return (
     <div
       className={cn(
-        "inline-flex items-center gap-1 rounded-xl border border-white/10 bg-[#1A1A1A] p-1",
+        "inline-flex items-center gap-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-1",
         className,
       )}
     >
@@ -62,8 +62,8 @@ export function Toggle({
       className={cn(
         "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
         active
-          ? "bg-white/10 text-white shadow-inner"
-          : "text-zinc-400 hover:text-white",
+          ? "bg-blue-500/15 text-[var(--text)] shadow-inner"
+          : "text-[var(--text-dim)] hover:text-[var(--text)]",
         className,
       )}
     >

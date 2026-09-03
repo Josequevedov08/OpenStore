@@ -6,6 +6,8 @@ interface ExpandablePitchProps {
   text: string;
   className?: string;
   clampClass?: string;
+  readMoreLabel?: string;
+  readLessLabel?: string;
 }
 
 /**
@@ -17,6 +19,8 @@ export default function ExpandablePitch({
   text,
   className = "",
   clampClass = "line-clamp-3",
+  readMoreLabel = "Leer más",
+  readLessLabel = "Leer menos",
 }: ExpandablePitchProps) {
   const [expandido, setExpandido] = useState(false);
 
@@ -25,7 +29,7 @@ export default function ExpandablePitch({
   return (
     <div className={className}>
       <p
-        className={`text-sm leading-relaxed text-zinc-400 ${
+        className={`text-sm leading-relaxed text-[var(--text-dim)] ${
           expandido ? "" : clampClass
         }`}
       >
@@ -36,7 +40,7 @@ export default function ExpandablePitch({
         onClick={() => setExpandido((v) => !v)}
         className="mt-1 text-xs font-medium text-blue-400 transition-colors hover:text-blue-300"
       >
-        {expandido ? "Leer menos" : "Leer más"}
+        {expandido ? readLessLabel : readMoreLabel}
       </button>
     </div>
   );

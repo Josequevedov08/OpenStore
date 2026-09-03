@@ -1,6 +1,36 @@
 @import "tailwindcss";
 
 /* ============================================================
+   TEMA (claro/oscuro real). Oscuro es el default histórico de la
+   app; [data-theme="light"] en <html> lo invierte. Los componentes
+   usan estas variables vía clases arbitrarias de Tailwind, p.ej.
+   bg-[var(--surface)] / text-[var(--text)] / border-[var(--border)].
+   ============================================================ */
+:root {
+  --bg: #121212;
+  --surface: #1a1a1a;
+  --surface-2: #161616;
+  --surface-hover: #2a2a2a;
+  --border: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.15);
+  --text: #ffffff;
+  --text-dim: #a1a1aa;
+  --text-dimmer: #71717a;
+}
+
+[data-theme="light"] {
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --surface-2: #f0f1f4;
+  --surface-hover: #e7e9ee;
+  --border: rgba(15, 23, 42, 0.1);
+  --border-strong: rgba(15, 23, 42, 0.16);
+  --text: #14171f;
+  --text-dim: #52525b;
+  --text-dimmer: #71717a;
+}
+
+/* ============================================================
    EXTERMINIO DE BUG DE SCROLL (nivel global)
    Fuerza el scroll vertical en los contenedores raíz.
    Cualquier overflow:hidden heredado en html/body/#root
@@ -13,10 +43,18 @@ body,
   height: auto !important;
   overflow-y: auto !important;
   overflow-x: hidden;
-  background-color: #121212;
+  background-color: var(--bg);
 }
 
 /* Por si acaso, el elemento con min-h-screen no debe atrapar el scroll */
 #root {
   isolation: isolate;
+}
+
+/* Foco visible por teclado en todo el sitio (accesibilidad) — Tailwind
+   quita el outline por defecto en varios componentes; lo devolvemos de
+   forma consistente sin depender de que cada componente lo declare. */
+:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
 }

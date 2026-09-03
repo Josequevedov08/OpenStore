@@ -151,6 +151,22 @@ export default function Modal({ proyecto, onClose, idioma = "en", installerUrl }
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
+
+      // Historial local (solo en este navegador) de instaladores descargados.
+      try {
+        const HISTORY_KEY = "appstore-historial-instalaciones";
+        const actual = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+        const entrada = {
+          titulo_comercial: proyecto.titulo_comercial,
+          repo_url: proyecto.repo_url,
+          plataforma: plataforma === "unix" ? "Mac / Linux" : "Windows",
+          fecha: new Date().toLocaleDateString(idioma === "es" ? "es-ES" : "en-US"),
+        };
+        const nuevo = [entrada, ...(Array.isArray(actual) ? actual : [])].slice(0, 20);
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(nuevo));
+      } catch {
+        // No crítico: el historial es solo una conveniencia local.
+      }
     } catch {
       setErrorInstalador(s.installError);
     } finally {
@@ -174,7 +190,7 @@ export default function Modal({ proyecto, onClose, idioma = "en", installerUrl }
       <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
 
       <div
-        className="relative z-10 max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-white/10 bg-[#1A1A1A] shadow-2xl [&::-webkit-scrollbar]:hidden scrollbar-width-none"
+        className="relative z-10 max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-2xl [&::-webkit-scrollbar]:hidden scrollbar-width-none"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Banner de imagen */}
@@ -188,7 +204,7 @@ export default function Modal({ proyecto, onClose, idioma = "en", installerUrl }
             alt={proyecto.titulo_comercial}
             className="h-48 w-full rounded-t-2xl object-cover"
           />
-          <div className="absolute inset-0 rounded-t-2xl bg-gradient-to-t from-[#1A1A1A] via-[#1A1A1A]/40 to-transparent" />
+          <div className="absolute inset-0 rounded-t-2xl bg-gradient-to-t from-[var(--surface)] via-[var(--surface)]/40 to-transparent" />
 
           <button
             type="button"
@@ -213,7 +229,7 @@ export default function Modal({ proyecto, onClose, idioma = "en", installerUrl }
 
         {/* Cuerpo */}
         <div className="p-8">
-          <p className="text-base leading-relaxed text-zinc-400">
+          <p className="text-base leading-relaxed text-[var(--text-dim)]">
             {proyecto.propuesta_valor}
           </p>
 
@@ -222,23 +238,23 @@ export default function Modal({ proyecto, onClose, idioma = "en", installerUrl }
             {metrics.map((m, i) => (
               <div
                 key={i}
-                className="rounded-xl border border-white/10 bg-zinc-900 px-3 py-3"
+                className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-3"
               >
-                <div className="mb-1 flex items-center gap-1.5 text-zinc-500">
+                <div className="mb-1 flex items-center gap-1.5 text-[var(--text-dimmer)]">
                   <m.icon className="h-3.5 w-3.5" />
                   <span className="text-[10px] font-medium uppercase tracking-wide">
                     {m.label}
                   </span>
                 </div>
-                <div className="text-sm font-semibold text-white">{m.value}</div>
+                <div className="text-sm font-semibold text-[var(--text)]">{m.value}</div>
               </div>
             ))}
           </div>
 
           {/* Metadatos estilo GitHub */}
-          <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2 border-y border-white/10 py-4 text-sm text-zinc-400">
-            <span><span className="text-zinc-500">{s.author}: </span><span className="text-zinc-300">{proyecto.autor}</span></span>
-            <span><span className="text-zinc-500">{s.license}: </span><span className="text-zinc-300">{proyecto.licencia}</span></span>
+          <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2 border-y border-[var(--border)] py-4 text-sm text-[var(--text-dim)]">
+            <span><span className="text-[var(--text-dimmer)]">{s.author}: </span><span className="text-[var(--text-dim)]">{proyecto.autor}</span></span>
+            <span><span className="text-[var(--text-dimmer)]">{s.license}: </span><span className="text-[var(--text-dim)]">{proyecto.licencia}</span></span>
             <span className="flex items-center gap-1.5 text-amber-300">
               <Star className="h-4 w-4 fill-amber-300" />
               {formatStars(proyecto.estrellas)}
@@ -248,14 +264,14 @@ export default function Modal({ proyecto, onClose, idioma = "en", installerUrl }
           {/* Dos columnas: Stack + Características */}
           <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
             <div>
-              <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-500">
+              <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--text-dimmer)]">
                 {s.stack}
               </h3>
               <div className="flex flex-wrap gap-2">
                 {(proyecto.tecnologias ?? []).map((tech, i) => (
                   <span
                     key={i}
-                    className="rounded-md border border-white/10 bg-zinc-800 px-2.5 py-1 text-xs font-medium text-zinc-200"
+                    className="rounded-md border border-[var(--border)] bg-[var(--surface-hover)] px-2.5 py-1 text-xs font-medium text-[var(--text-dim)]"
                   >
                     {tech}
                   </span>
@@ -264,12 +280,12 @@ export default function Modal({ proyecto, onClose, idioma = "en", installerUrl }
             </div>
 
             <div>
-              <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-500">
+              <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--text-dimmer)]">
                 {s.features}
               </h3>
               <ul className="flex flex-col gap-2">
                 {(proyecto.caracteristicas ?? []).map((feat, i) => (
-                  <li key={i} className="flex items-center gap-2 text-sm text-zinc-300">
+                  <li key={i} className="flex items-center gap-2 text-sm text-[var(--text-dim)]">
                     <Check className="h-4 w-4 shrink-0 text-green-400" />
                     {feat}
                   </li>
@@ -282,12 +298,12 @@ export default function Modal({ proyecto, onClose, idioma = "en", installerUrl }
           {Array.isArray(proyecto.requisitos_externos) &&
             proyecto.requisitos_externos.length > 0 && (
               <div className="mt-6">
-                <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-500">
+                <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--text-dimmer)]">
                   {s.requirements}
                 </h3>
                 <ul className="flex flex-col gap-2">
                   {proyecto.requisitos_externos.map((req, i) => (
-                    <li key={i} className="flex items-center gap-2 text-sm text-zinc-300">
+                    <li key={i} className="flex items-center gap-2 text-sm text-[var(--text-dim)]">
                       <span className="h-1.5 w-1.5 rounded-full bg-gradient-to-r from-orange-400 to-amber-300" />
                       {req}
                     </li>
@@ -298,7 +314,7 @@ export default function Modal({ proyecto, onClose, idioma = "en", installerUrl }
         </div>
 
         {/* Footer: el CTA principal descarga el Instalador Inteligente (Windows o Mac/Linux) */}
-        <div className="flex flex-col gap-3 border-t border-white/10 p-6">
+        <div className="flex flex-col gap-3 border-t border-[var(--border)] p-6">
           <div className="flex flex-col gap-2 sm:flex-row">
             <button
               type="button"
@@ -330,7 +346,7 @@ export default function Modal({ proyecto, onClose, idioma = "en", installerUrl }
               href={proyecto.repo_url || "#"}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 rounded-xl border border-white/15 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/5"
+              className="flex items-center justify-center gap-2 rounded-xl border border-[var(--border-strong)] px-4 py-3 text-sm font-semibold text-[var(--text)] transition-colors hover:bg-[var(--surface-hover)]"
             >
               <GithubIcon className="h-4 w-4" />
               {s.viewGithub}
@@ -339,7 +355,7 @@ export default function Modal({ proyecto, onClose, idioma = "en", installerUrl }
           {errorInstalador ? (
             <p className="text-center text-xs text-red-400">{errorInstalador}</p>
           ) : (
-            <p className="text-center text-xs text-zinc-500">{s.installHint}</p>
+            <p className="text-center text-xs text-[var(--text-dimmer)]">{s.installHint}</p>
           )}
         </div>
       </div>

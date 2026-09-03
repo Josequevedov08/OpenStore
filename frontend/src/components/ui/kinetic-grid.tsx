@@ -12,9 +12,33 @@ const MAX_WARP = 24;
 const DOT_SPACING = 28;
 const LERP_SPEED = 0.08;
 
-const LINE_BASE = { r: 255, g: 255, b: 255, a: 0.13 };
 const NODE_BASE_RADIUS = 1.8;
 const NODE_ACTIVE_RADIUS = 3.2;
+
+// Paletas por tema: en modo claro, líneas/puntos blancos serían invisibles
+// sobre un fondo claro — cada tema define su propio set de colores base.
+const THEMES = {
+  dark: {
+    bg: "#161618",
+    dot: "rgba(255,255,255,0.05)",
+    lineBase: { r: 255, g: 255, b: 255, a: 0.13 },
+    nodeBase: { r: 255, g: 255, b: 255, a: 0.2 },
+    lineActive: { r: 74, g: 158, b: 255, a: 0.9 },
+    nodeActive: { r: 74, g: 158, b: 255, a: 1.0 },
+    glow: "74,158,255",
+    ripple: "100,180,255",
+  },
+  light: {
+    bg: "#f4f5f7",
+    dot: "rgba(15,23,42,0.08)",
+    lineBase: { r: 15, g: 23, b: 42, a: 0.09 },
+    nodeBase: { r: 15, g: 23, b: 42, a: 0.15 },
+    lineActive: { r: 37, g: 99, b: 235, a: 0.9 },
+    nodeActive: { r: 37, g: 99, b: 235, a: 1.0 },
+    glow: "37,99,235",
+    ripple: "37,99,235",
+  },
+};
 
 function lerpN(a: number, b: number, t: number) { return a + (b - a) * t; }
 
@@ -34,10 +58,12 @@ export default function KineticGrid({
   children,
   className,
   globalColor = "default",
+  theme = "dark",
 }: {
   children?: ReactNode;
   className?: string;
   globalColor?: "default" | "monochrome";
+  theme?: "dark" | "light";
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mouseRef = useRef<Point>({ x: -9999, y: -9999 });
@@ -45,6 +71,8 @@ export default function KineticGrid({
   const ripplesRef = useRef<Ripple[]>([]);
   const rafRef = useRef<number>(0);
   const sizeRef = useRef<{ w: number; h: number }>({ w: 0, h: 0 });
+  const themeRef = useRef<"dark" | "light">(theme);
+  themeRef.current = theme;
 
   const getWarpedPoint = useCallback(
     (gx: number, gy: number, col: number, row: number, mouse: Point, ripples: Ripple[], cols: number, rows: number): { pt: Point; proximity: number } => {
@@ -101,16 +129,30 @@ export default function KineticGrid({
       const mouse = mouseRef.current;
       const ripples = ripplesRef.current;
 
-      const theme = {
-        default: { bg: "#161618", lineActive: { r: 74, g: 158, b: 255, a: 0.9 }, nodeActive: { r: 74, g: 158, b: 255, a: 1.0 }, glow: "74,158,255", ripple: "100,180,255" },
-        monochrome: { bg: "#000000", lineActive: { r: 255, g: 255, b: 255, a: 0.9 }, nodeActive: { r: 255, g: 255, b: 255, a: 1.0 }, glow: "255,255,255", ripple: "255,255,255" },
-      }[globalColor ?? "default"];
+      const base = THEMES[themeRef.current] ?? THEMES.dark;
+      // "monochrome" reemplaza solo el acento (líneas/nodos activos) por
+      // blanco puro (oscuro) o casi-negro (claro), conservando fondo/base
+      // del tema actual para que siga siendo legible en ambos modos.
+      const mono =
+        themeRef.current === "light"
+          ? { r: 15, g: 23, b: 42 }
+          : { r: 255, g: 255, b: 255 };
+      const palette =
+        globalColor === "monochrome"
+          ? {
+              ...base,
+              lineActive: { ...mono, a: 0.9 },
+              nodeActive: { ...mono, a: 1.0 },
+              glow: `${mono.r},${mono.g},${mono.b}`,
+              ripple: `${mono.r},${mono.g},${mono.b}`,
+            }
+          : base;
 
       ctx.clearRect(0, 0, W, H);
-      ctx.fillStyle = theme.bg;
+      ctx.fillStyle = palette.bg;
       ctx.fillRect(0, 0, W, H);
 
-      ctx.fillStyle = "rgba(255,255,255,0.05)";
+      ctx.fillStyle = palette.dot;
       for (let x = DOT_SPACING / 2; x < W; x += DOT_SPACING) {
         for (let y = DOT_SPACING / 2; y < H; y += DOT_SPACING) {
           ctx.beginPath();
@@ -150,7 +192,7 @@ export default function KineticGrid({
         ctx.beginPath();
         ctx.moveTo(p1.x, p1.y);
         ctx.lineTo(p2.x, p2.y);
-        ctx.strokeStyle = lerpColor(LINE_BASE, theme.lineActive, t);
+        ctx.strokeStyle = lerpColor(palette.lineBase, palette.lineActive, t);
         ctx.lineWidth = lerpN(0.8, 1.5, t);
         ctx.stroke();
       };
@@ -171,8 +213,8 @@ export default function KineticGrid({
           if (t > 0.3) {
             const glowR = r + lerpN(0, 6, (t - 0.3) / 0.7);
             const grd = ctx.createRadialGradient(p.x, p.y, r * 0.5, p.x, p.y, glowR);
-            grd.addColorStop(0, `rgba(${theme.glow},${(t * 0.3).toFixed(3)})`);
-            grd.addColorStop(1, `rgba(${theme.glow},0)`);
+            grd.addColorStop(0, `rgba(${palette.glow},${(t * 0.3).toFixed(3)})`);
+            grd.addColorStop(1, `rgba(${palette.glow},0)`);
             ctx.beginPath();
             ctx.arc(p.x, p.y, glowR, 0, Math.PI * 2);
             ctx.fillStyle = grd;
@@ -180,7 +222,7 @@ export default function KineticGrid({
           }
           ctx.beginPath();
           ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
-          ctx.fillStyle = lerpColor({ r: 255, g: 255, b: 255, a: 0.2 }, theme.nodeActive, t);
+          ctx.fillStyle = lerpColor(palette.nodeBase, palette.nodeActive, t);
           ctx.fill();
         }
       }
@@ -189,7 +231,7 @@ export default function KineticGrid({
         const safeRadius = Math.max(0, r.radius);
         ctx.beginPath();
         ctx.arc(r.x, r.y, safeRadius, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(${theme.ripple},${(r.opacity * 0.28).toFixed(3)})`;
+        ctx.strokeStyle = `rgba(${palette.ripple},${(r.opacity * 0.28).toFixed(3)})`;
         ctx.lineWidth = 1.5;
         ctx.stroke();
       }
@@ -240,8 +282,7 @@ export default function KineticGrid({
   return (
     <div
       className={cn(
-        "fixed inset-0 z-0 pointer-events-none",
-        globalColor === "monochrome" ? "bg-[#000000]" : "bg-[#161618]",
+        "fixed inset-0 z-0 pointer-events-none bg-[var(--bg)]",
         className,
       )}
     >

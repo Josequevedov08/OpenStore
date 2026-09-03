@@ -21,16 +21,16 @@ export default function StarOnGithub({
   className,
 }: StarOnGithubProps) {
   const cls = [
-    "group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl border border-white/10 bg-gradient-to-b from-[#232323] to-[#161616] px-4 py-3 text-sm font-semibold text-white transition-all",
-    "hover:from-[#2a2a2a] hover:to-[#1c1c1c]",
+    "group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3 text-sm font-semibold text-[var(--text)] transition-all",
+    "hover:bg-[var(--surface-hover)]",
     "after:absolute after:inset-x-3 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-blue-400/80 after:to-transparent after:opacity-60 after:blur-[1px] after:transition-opacity group-hover:after:opacity-100",
-    "shadow-[0_8px_30px_rgba(0,0,0,0.5)] hover:shadow-[0_10px_40px_rgba(59,130,246,0.25)]",
+    "shadow-[0_8px_30px_rgba(0,0,0,0.25)] hover:shadow-[0_10px_40px_rgba(59,130,246,0.25)]",
     className ?? "",
   ].join(" ");
 
   const inner = (
     <>
-      <GithubIcon className="h-4 w-4 text-zinc-200" />
+      <GithubIcon className="h-4 w-4 text-[var(--text-dim)]" />
       <span>{texto}</span>
     </>
   );

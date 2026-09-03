@@ -43,12 +43,12 @@ export default function PromptInput({
     <form
       onSubmit={submit}
       className={cn(
-        "group relative flex w-full items-center gap-2 rounded-2xl border border-white/10 bg-[#161616]/80 px-4 py-3 shadow-2xl backdrop-blur-md transition-all",
+        "group relative flex w-full items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]/80 px-4 py-3 shadow-2xl backdrop-blur-md transition-all",
         "focus-within:border-blue-500/60 focus-within:shadow-[0_0_30px_rgba(59,130,246,0.35)]",
         className,
       )}
     >
-      <Search className="h-5 w-5 shrink-0 text-zinc-400" />
+      <Search className="h-5 w-5 shrink-0 text-[var(--text-dim)]" />
       <input
         id={id}
         type="text"
@@ -56,7 +56,7 @@ export default function PromptInput({
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={onKeyDown}
         placeholder={placeholder}
-        className="w-full bg-transparent text-base text-white placeholder:text-zinc-500 focus:outline-none"
+        className="w-full bg-transparent text-base text-[var(--text)] placeholder:text-[var(--text-dimmer)] focus:outline-none"
       />
       <button
         type="submit"
