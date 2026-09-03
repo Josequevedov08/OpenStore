@@ -38,6 +38,7 @@ const STRINGS = {
     list: 'List',
     loading: 'Searching all of GitHub…',
     loadingSlow: "Still working — the free server may be waking up from idle, or the AI is reading each README. This can take up to a minute.",
+    retrying: 'Connection dropped — retrying automatically ({attempt}/2)…',
     viewDetails: 'Get',
     pending: 'Analysis pending',
     error: "Couldn't reach the server. Please try again in a moment.",
@@ -62,6 +63,7 @@ const STRINGS = {
     list: 'Lista',
     loading: 'Buscando en todo GitHub…',
     loadingSlow: 'Seguimos trabajando — puede que el servidor gratuito esté "despertando", o la IA está leyendo cada README. Puede tardar hasta un minuto.',
+    retrying: 'La conexión se cortó — reintentando automáticamente ({attempt}/2)…',
     viewDetails: 'Instalar',
     pending: 'Análisis pendiente',
     error: 'No se pudo contactar al servidor. Intenta de nuevo en un momento.',
@@ -222,6 +224,7 @@ export default function App() {
   const [query, setQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [isSlow, setIsSlow] = useState(false);
+  const [retryAttempt, setRetryAttempt] = useState(0);
   const [resultados, setResultados] = useState([]);
   const [error, setError] = useState('');
   const [viewMode, setViewMode] = useState('grid');
@@ -269,22 +272,53 @@ export default function App() {
     if (!q.trim()) return;
     setIsSearching(true);
     setIsSlow(false);
+    setRetryAttempt(0);
     setError('');
     setResultados([]);
-    // Timeout defensivo: si el backend se cuelga por lo que sea, el usuario
-    // ve un error accionable en vez de un spinner infinito. Una búsqueda
-    // normal tarda 15-30s, pero el backend gratuito puede tardar 30-50s más
-    // en "despertar" si estaba dormido — 120s da margen para ambos casos.
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 120_000);
-    const slowId = setTimeout(() => setIsSlow(true), 8_000);
+
+    // Reintentos automáticos: en conexiones inestables, un fetch puede
+    // fallar a nivel de red (p.ej. "TypeError: Failed to fetch") sin que el
+    // servidor tenga ningún problema — un segundo o tercer intento suele
+    // funcionar. Solo reintentamos fallos de red, nunca un timeout real
+    // (AbortError) ni una respuesta HTTP del servidor (esa sí es final).
+    const MAX_INTENTOS = 3;
+    let ultimoError;
+    let res;
+    for (let intento = 1; intento <= MAX_INTENTOS; intento++) {
+      const controller = new AbortController();
+      // Timeout defensivo: si el backend se cuelga por lo que sea, el
+      // usuario ve un error accionable en vez de un spinner infinito. Una
+      // búsqueda normal tarda 15-30s, pero el backend gratuito puede tardar
+      // 30-50s más en "despertar" si estaba dormido — 120s da margen.
+      const timeoutId = setTimeout(() => controller.abort(), 120_000);
+      const slowId = setTimeout(() => setIsSlow(true), 8_000);
+      try {
+        res = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: q, idioma }),
+          signal: controller.signal,
+        });
+        ultimoError = null;
+        break;
+      } catch (err) {
+        ultimoError = err;
+        clearTimeout(timeoutId);
+        clearTimeout(slowId);
+        // Un timeout real (ya esperamos 120s) o el último intento: no
+        // seguimos reintentando, ya perdimos demasiado tiempo.
+        if (err?.name === 'AbortError' || intento === MAX_INTENTOS) break;
+        setRetryAttempt(intento);
+        await new Promise((r) => setTimeout(r, 1500 * intento));
+        continue;
+      } finally {
+        clearTimeout(timeoutId);
+        clearTimeout(slowId);
+      }
+    }
+
     try {
-      const res = await fetch(API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: q, idioma }),
-        signal: controller.signal,
-      });
+      if (ultimoError) throw ultimoError;
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       const lista = Array.isArray(data) ? data : data.resultados ?? data.soluciones ?? [];
@@ -294,10 +328,9 @@ export default function App() {
       setResultados([]);
       setError(err?.name === 'AbortError' ? t.timeoutError : t.error);
     } finally {
-      clearTimeout(timeoutId);
-      clearTimeout(slowId);
       setIsSearching(false);
       setIsSlow(false);
+      setRetryAttempt(0);
     }
   };
 
@@ -353,7 +386,14 @@ export default function App() {
             <div className="flex w-full flex-col items-center gap-2 py-24 text-center text-zinc-400">
               <span className="mb-2 h-8 w-8 animate-spin rounded-full border-2 border-white/10 border-t-blue-400" />
               <span>{t.loading}</span>
-              {isSlow && <span className="max-w-sm text-xs text-zinc-500">{t.loadingSlow}</span>}
+              {retryAttempt > 0 && (
+                <span className="max-w-sm text-xs text-amber-400">
+                  {t.retrying.replace('{attempt}', String(retryAttempt))}
+                </span>
+              )}
+              {isSlow && retryAttempt === 0 && (
+                <span className="max-w-sm text-xs text-zinc-500">{t.loadingSlow}</span>
+              )}
             </div>
           ) : error ? (
             <div className="mx-auto flex max-w-xl flex-col items-center gap-3 rounded-2xl border border-red-500/20 bg-red-500/5 px-6 py-10 text-center text-zinc-300">
