@@ -7,6 +7,7 @@ import { cn } from "../../lib/utils";
 interface PromptInputProps {
   onSubmit: (value: string) => void;
   placeholder?: string;
+  submitLabel?: string;
   className?: string;
 }
 
@@ -17,6 +18,7 @@ interface PromptInputProps {
 export default function PromptInput({
   onSubmit,
   placeholder = "Escribe tu búsqueda...",
+  submitLabel = "Buscar",
   className,
 }: PromptInputProps) {
   const [value, setValue] = useState("");
@@ -57,7 +59,7 @@ export default function PromptInput({
         type="submit"
         className="shrink-0 rounded-xl bg-gradient-to-r from-orange-500 to-amber-400 px-4 py-2 text-sm font-semibold text-white transition-transform hover:scale-[1.03] active:scale-95"
       >
-        Buscar
+        {submitLabel}
       </button>
     </form>
   );

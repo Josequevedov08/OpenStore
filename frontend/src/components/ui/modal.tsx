@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { X, Star, Check, GitBranch, AlertCircle, GitPullRequest, Code2, Clock } from "lucide-react";
+import { X, Star, Check, GitBranch, AlertCircle, GitPullRequest, Code2 } from "lucide-react";
 import { GithubIcon } from "./modal-shared";
 
 interface ModalProps {
@@ -12,21 +12,21 @@ interface ModalProps {
     requisitos_externos?: string[];
     estrellas?: number | string;
     ultima_actualizacion?: string;
-    repoUrl?: string;
+    repo_url?: string;
     tecnologias?: string[];
     caracteristicas?: string[];
     imagen_url?: string;
     autor?: string;
     licencia?: string;
+    version?: string;
     forks?: number;
-    ultima_version?: string;
     issues_abiertos?: number;
     pull_requests?: number;
     lenguaje_principal?: string;
-    ultimo_commit?: string;
     readme?: string;
   } | null;
   onClose: () => void;
+  idioma?: "en" | "es";
 }
 
 // Formatea estrellas al estilo GitHub: 12400 -> "12.4k", 850 -> "850"
@@ -36,7 +36,41 @@ function formatStars(v?: number | string): string {
   return `${n}`;
 }
 
-export default function Modal({ proyecto, onClose }: ModalProps) {
+const MODAL_STRINGS = {
+  en: {
+    close: "Close",
+    issues: "Open Issues",
+    forks: "Forks",
+    prs: "Pull Requests",
+    lang: "Language",
+    stack: "Tech Stack",
+    features: "Key Features",
+    requirements: "External Requirements",
+    author: "Author",
+    license: "License",
+    version: "Version",
+    install: "Install",
+    viewGithub: "View on GitHub",
+  },
+  es: {
+    close: "Cerrar",
+    issues: "Issues Abiertos",
+    forks: "Forks",
+    prs: "Pull Requests",
+    lang: "Lenguaje",
+    stack: "Stack Tecnológico",
+    features: "Características Principales",
+    requirements: "Requisitos externos",
+    author: "Autor",
+    license: "Licencia",
+    version: "Versión",
+    install: "Instalar",
+    viewGithub: "Ver en GitHub",
+  },
+};
+
+export default function Modal({ proyecto, onClose, idioma = "en" }: ModalProps) {
+  const s = MODAL_STRINGS[idioma] ?? MODAL_STRINGS.en;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -52,11 +86,10 @@ export default function Modal({ proyecto, onClose }: ModalProps) {
   if (!proyecto) return null;
 
   const metrics = [
-    { icon: AlertCircle, label: "Issues Abiertos", value: proyecto.issues_abiertos ?? 0 },
-    { icon: GitBranch, label: "Forks", value: proyecto.forks ?? 0 },
-    { icon: GitPullRequest, label: "Pull Requests", value: proyecto.pull_requests ?? 0 },
-    { icon: Code2, label: "Lenguaje", value: proyecto.lenguaje_principal ?? "—" },
-    { icon: Clock, label: "Último Commit", value: proyecto.ultimo_commit ?? "—" },
+    { icon: AlertCircle, label: s.issues, value: proyecto.issues_abiertos ?? 0 },
+    { icon: GitBranch, label: s.forks, value: proyecto.forks ?? 0 },
+    { icon: GitPullRequest, label: s.prs, value: proyecto.pull_requests ?? 0 },
+    { icon: Code2, label: s.lang, value: proyecto.lenguaje_principal ?? "—" },
   ];
 
   return (
@@ -82,7 +115,7 @@ export default function Modal({ proyecto, onClose }: ModalProps) {
           <button
             type="button"
             onClick={onClose}
-            aria-label="Cerrar"
+            aria-label={s.close}
             className="absolute right-4 top-4 rounded-full bg-black/50 p-2 text-white backdrop-blur-sm transition-colors hover:bg-black/80"
           >
             <X className="h-4 w-4" />
@@ -106,8 +139,8 @@ export default function Modal({ proyecto, onClose }: ModalProps) {
             {proyecto.propuesta_valor}
           </p>
 
-          {/* Grid de estadísticas compacto (Issues, PRs, Lenguaje, Commit) */}
-          <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-5">
+          {/* Grid de estadísticas compacto (Issues, Forks, PRs, Lenguaje) */}
+          <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
             {metrics.map((m, i) => (
               <div
                 key={i}
@@ -126,32 +159,20 @@ export default function Modal({ proyecto, onClose }: ModalProps) {
 
           {/* Metadatos estilo GitHub */}
           <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2 border-y border-white/10 py-4 text-sm text-zinc-400">
-            <span><span className="text-zinc-500">Autor: </span><span className="text-zinc-300">{proyecto.autor}</span></span>
-            <span><span className="text-zinc-500">Licencia: </span><span className="text-zinc-300">{proyecto.licencia}</span></span>
-            <span><span className="text-zinc-500">Versión: </span><span className="text-zinc-300">{proyecto.ultima_version}</span></span>
+            <span><span className="text-zinc-500">{s.author}: </span><span className="text-zinc-300">{proyecto.autor}</span></span>
+            <span><span className="text-zinc-500">{s.license}: </span><span className="text-zinc-300">{proyecto.licencia}</span></span>
+            <span><span className="text-zinc-500">{s.version}: </span><span className="text-zinc-300">{proyecto.version}</span></span>
             <span className="flex items-center gap-1.5 text-amber-300">
               <Star className="h-4 w-4 fill-amber-300" />
               {formatStars(proyecto.estrellas)}
             </span>
           </div>
 
-          {/* Acerca de / Readme */}
-          {proyecto.readme && (
-            <div className="mt-6">
-              <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-zinc-500">
-                Acerca de este proyecto
-              </h3>
-              <p className="rounded-xl border border-white/10 bg-zinc-900/60 p-4 text-sm leading-relaxed text-zinc-400">
-                {proyecto.readme}
-              </p>
-            </div>
-          )}
-
           {/* Dos columnas: Stack + Características */}
           <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
             <div>
               <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-500">
-                Stack Tecnológico
+                {s.stack}
               </h3>
               <div className="flex flex-wrap gap-2">
                 {(proyecto.tecnologias ?? []).map((tech, i) => (
@@ -167,7 +188,7 @@ export default function Modal({ proyecto, onClose }: ModalProps) {
 
             <div>
               <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-500">
-                Características Principales
+                {s.features}
               </h3>
               <ul className="flex flex-col gap-2">
                 {(proyecto.caracteristicas ?? []).map((feat, i) => (
@@ -185,7 +206,7 @@ export default function Modal({ proyecto, onClose }: ModalProps) {
             proyecto.requisitos_externos.length > 0 && (
               <div className="mt-6">
                 <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-500">
-                  Requisitos externos
+                  {s.requirements}
                 </h3>
                 <ul className="flex flex-col gap-2">
                   {proyecto.requisitos_externos.map((req, i) => (
@@ -199,15 +220,16 @@ export default function Modal({ proyecto, onClose }: ModalProps) {
             )}
         </div>
 
-        {/* Footer */}
+        {/* Footer: el CTA principal instala de verdad (abre el repo real) */}
         <div className="flex flex-col gap-3 border-t border-white/10 p-6 sm:flex-row">
-          <button
-            type="button"
-            onClick={() => alert("Iniciando instalación...")}
-            className="flex-1 rounded-xl bg-blue-600 px-6 py-3 text-base font-black text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] transition-all hover:bg-blue-500"
+          <a
+            href={proyecto.repo_url || "#"}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-base font-black text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] transition-all hover:bg-blue-500"
           >
-            Instalar
-          </button>
+            {s.install}
+          </a>
           <a
             href={proyecto.repo_url || "#"}
             target="_blank"
@@ -215,7 +237,7 @@ export default function Modal({ proyecto, onClose }: ModalProps) {
             className="flex items-center justify-center gap-2 rounded-xl border border-white/15 px-6 py-3 text-base font-semibold text-white transition-colors hover:bg-white/5"
           >
             <GithubIcon className="h-4 w-4" />
-            Ver en GitHub
+            {s.viewGithub}
           </a>
         </div>
       </div>

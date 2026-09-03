@@ -69,7 +69,7 @@ DEFAULT_MODELS = {
     "openai": "gpt-4o-mini",
     "anthropic": "claude-3-5-sonnet-latest",
     "groq": "llama3-8b-8192",
-    "gemini": "gemini-2.5-flash",
+    "gemini": "gemini-3.6-flash",
 }
 AI_MODEL = os.getenv("AI_MODEL") or DEFAULT_MODELS.get(AI_PROVIDER, "gpt-4o-mini")
 
@@ -117,6 +117,7 @@ app.add_middleware(
 
 class BusquedaRequest(BaseModel):
     query: str
+    idioma: Optional[str] = "en"  # "en" (por defecto) o "es"
 
 
 # ---------------------------------------------------------------------------
@@ -254,40 +255,99 @@ async def extraer_repo_completo(client: httpx.AsyncClient, repo: dict) -> dict:
 # ---------------------------------------------------------------------------
 # Fase 3: Motor de comprensión (LLM)
 # ---------------------------------------------------------------------------
-SYSTEM_PROMPT = (
-    "Eres un redactor comercial de software B2B y un analista técnico. "
-    "REGLA CRÍTICA Y OBLIGATORIA: Todo el contenido generado, absolutamente todo, "
-    "DEBE estar en Español. Si el repositorio original está en Inglés o Chino, debes "
-    "traducirlo y adaptarlo al Español. Cero excepciones. "
-    "ACTÚAS COMO UN TRADUCTOR NATIVO AL ESPAÑOL Y REDACTOR COMERCIAL. "
-    "DEBES TRADUCIR TODO EL CONTENIDO DEL INGLÉS, CHINO O CUALQUIER OTRO IDIOMA EXTRANJERO AL ESPAÑOL. "
-    "LA SALIDA DEBE SER EXCLUSIVAMENTE UN OBJETO JSON VÁLIDO, SIN MARKDOWN, SIN TEXTO ANTES NI DESPUÉS. "
-    "Lee este README técnico de un repositorio de GitHub y devuelve un JSON estricto "
-    "que transforme el contenido técnico en una ficha comercial persuasiva. "
-    "NO devuelvas markdown, ni explicaciones, SOLO el objeto JSON.\n\n"
-    "REGLAS OBLIGATORIAS:\n"
-    "1) IDIOMA ESTRICTO: TODA la salida del JSON debe estar en ESPAÑOL. Traduce automáticamente "
-    "cualquier texto en inglés, chino, ruso u otro idioma.\n"
-    "2) ESTRUCTURA de 'propuesta_valor' (string, redacta como texto continuo persuasivo):\n"
-    "   - Un HOOK inicial corto y llamativo (1 frase).\n"
-    "   - Qué es y para qué sirve.\n"
-    "   - Cómo funciona brevemente (mecánica simple).\n"
-    "   - Un CTA final que explique por qué el usuario debería instalarlo.\n"
-    "3) 'requisitos_externos' (array de strings): NO listes tecnologías sueltas. Explica en lenguaje "
-    "de negocio qué necesita el usuario para que funcione, por ejemplo: 'Una API Key de OpenAI con saldo', "
-    "'Tener Node.js instalado en el servidor', 'Cuenta de GitHub con permisos de lectura'.\n"
-    "4) 'tecnologias' (array de strings): lenguajes/frameworks detectados.\n"
-    "5) 'caracteristicas' (array de strings): exactamente 3 funciones clave en español.\n"
-    "6) 'imagen_url': una URL de imagen de Unsplash relacionada con tecnología/software.\n\n"
-    "ESTRUCTURA JSON EXACTA:\n"
-    "{\n"
-    '  "titulo_comercial": string (nombre atractivo en español),\n'
-    '  "propuesta_valor": string (hook + qué es + cómo funciona + CTA, en español),\n'
-    '  "tecnologias": [string, ...],\n'
-    '  "caracteristicas": [string, string, string],\n'
-    '  "requisitos_externos": [string, ...],\n'
-    '  "imagen_url": string\n'
-    "}"
+# Idioma de salida por defecto de toda la plataforma. El frontend puede pedir
+# "es" explícitamente vía el campo `idioma` del payload.
+DEFAULT_IDIOMA = "en"
+
+
+def get_system_prompt(idioma: str) -> str:
+    """Devuelve el system prompt del LLM en inglés (por defecto) o español.
+
+    En ambos casos la regla es la misma: traducir automáticamente CUALQUIER
+    idioma de origen (chino, ruso, español, inglés, etc.) al idioma de salida
+    solicitado.
+    """
+    if idioma == "es":
+        return (
+            "Eres un redactor comercial de software B2B y un analista técnico. "
+            "REGLA CRÍTICA Y OBLIGATORIA: Todo el contenido generado, absolutamente todo, "
+            "DEBE estar en Español. Si el repositorio original está en Inglés, Chino, Ruso "
+            "o cualquier otro idioma, debes traducirlo y adaptarlo al Español. Cero excepciones. "
+            "ACTÚAS COMO UN TRADUCTOR NATIVO AL ESPAÑOL Y REDACTOR COMERCIAL. "
+            "LA SALIDA DEBE SER EXCLUSIVAMENTE UN OBJETO JSON VÁLIDO, SIN MARKDOWN, SIN TEXTO ANTES NI DESPUÉS. "
+            "Lee este README técnico de un repositorio de GitHub y devuelve un JSON estricto "
+            "que transforme el contenido técnico en una ficha comercial persuasiva. "
+            "NO devuelvas markdown, ni explicaciones, SOLO el objeto JSON.\n\n"
+            "REGLAS OBLIGATORIAS:\n"
+            "1) IDIOMA ESTRICTO: TODA la salida del JSON debe estar en ESPAÑOL. Traduce automáticamente "
+            "cualquier texto en inglés, chino, ruso u otro idioma.\n"
+            "2) ESTRUCTURA de 'propuesta_valor' (string, redacta como texto continuo persuasivo):\n"
+            "   - Un HOOK inicial corto y llamativo (1 frase).\n"
+            "   - Qué es y para qué sirve.\n"
+            "   - Cómo funciona brevemente (mecánica simple).\n"
+            "   - Un CTA final que explique por qué el usuario debería instalarlo.\n"
+            "3) 'requisitos_externos' (array de strings): NO listes tecnologías sueltas. Explica en lenguaje "
+            "de negocio qué necesita el usuario para que funcione, por ejemplo: 'Una API Key de OpenAI con saldo', "
+            "'Tener Node.js instalado en el servidor', 'Cuenta de GitHub con permisos de lectura'.\n"
+            "4) 'tecnologias' (array de strings): lenguajes/frameworks detectados.\n"
+            "5) 'caracteristicas' (array de strings): exactamente 3 funciones clave en español.\n"
+            "6) 'imagen_url': una URL de imagen de Unsplash relacionada con tecnología/software.\n\n"
+            "ESTRUCTURA JSON EXACTA:\n"
+            "{\n"
+            '  "titulo_comercial": string (nombre atractivo en español),\n'
+            '  "propuesta_valor": string (hook + qué es + cómo funciona + CTA, en español),\n'
+            '  "tecnologias": [string, ...],\n'
+            '  "caracteristicas": [string, string, string],\n'
+            '  "requisitos_externos": [string, ...],\n'
+            '  "imagen_url": string\n'
+            "}"
+        )
+
+    # Inglés (idioma por defecto de la plataforma).
+    return (
+        "You are a B2B software copywriter and technical analyst. "
+        "CRITICAL AND MANDATORY RULE: All generated content, absolutely all of it, "
+        "MUST be in English. If the original repository is in Chinese, Russian, Spanish "
+        "or any other language, you must translate and adapt it into English. No exceptions. "
+        "YOU ACT AS A NATIVE ENGLISH TRANSLATOR AND COMMERCIAL COPYWRITER. "
+        "YOU MUST TRANSLATE ALL CONTENT FROM CHINESE, SPANISH, RUSSIAN OR ANY OTHER FOREIGN "
+        "LANGUAGE INTO ENGLISH. "
+        "THE OUTPUT MUST BE EXCLUSIVELY A VALID JSON OBJECT, NO MARKDOWN, NO TEXT BEFORE OR AFTER. "
+        "Read this technical GitHub repository README and return a strict JSON object that turns "
+        "the technical content into a persuasive commercial pitch. "
+        "DO NOT return markdown or explanations, ONLY the JSON object.\n\n"
+        "MANDATORY RULES:\n"
+        "1) STRICT LANGUAGE: ALL of the JSON output must be in ENGLISH. Automatically translate "
+        "any text in Spanish, Chinese, Russian or any other language.\n"
+        "2) STRUCTURE of 'propuesta_valor' (string, write as persuasive continuous copy):\n"
+        "   - A short, catchy opening HOOK (1 sentence).\n"
+        "   - What it is and what it's for.\n"
+        "   - How it briefly works (simple mechanics).\n"
+        "   - A final CTA explaining why the user should install it.\n"
+        "3) 'requisitos_externos' (array of strings): do NOT just list raw technologies. Explain in "
+        "business language what the user needs for it to work, e.g. 'An OpenAI API key with credit', "
+        "'Node.js installed on the server', 'A GitHub account with read permissions'.\n"
+        "4) 'tecnologias' (array of strings): detected languages/frameworks.\n"
+        "5) 'caracteristicas' (array of strings): exactly 3 key features in English.\n"
+        "6) 'imagen_url': an Unsplash image URL related to technology/software.\n\n"
+        "EXACT JSON STRUCTURE:\n"
+        "{\n"
+        '  "titulo_comercial": string (catchy product name, in English),\n'
+        '  "propuesta_valor": string (hook + what it is + how it works + CTA, in English),\n'
+        '  "tecnologias": [string, ...],\n'
+        '  "caracteristicas": [string, string, string],\n'
+        '  "requisitos_externos": [string, ...],\n'
+        '  "imagen_url": string\n'
+        "}"
+    )
+
+
+# Ritmo de envío al LLM para no exceder la capa gratuita del proveedor.
+# Gemini free tier (AI Studio): 15 RPM -> ~4s entre llamadas es suficiente.
+# Groq free tier es mucho más generoso -> casi sin espera.
+DEFAULT_RATE_LIMIT = {"gemini": 4.5, "groq": 0.5, "openai": 0.5, "anthropic": 0.5}
+AI_RATE_LIMIT_SECONDS = float(
+    os.getenv("AI_RATE_LIMIT_SECONDS", DEFAULT_RATE_LIMIT.get(AI_PROVIDER, 2.0))
 )
 
 
@@ -316,22 +376,37 @@ def _cliente_ia():
     return AsyncOpenAI(api_key=AI_API_KEY)
 
 
-async def procesar_readme_con_ia(readme_text: str, repo_data: dict) -> Optional[dict]:
+async def procesar_readme_con_ia(
+    readme_text: str, repo_data: dict, idioma: str = DEFAULT_IDIOMA
+) -> Optional[dict]:
     """
     Envía el README al LLM y parsea la ficha comercial.
     Si no hay API key o falla, devuelve None (se usará un fallback).
     """
     if not AI_API_KEY:
+        print(
+            "[FASE 3] AI_API_KEY no configurada: define AI_PROVIDER y AI_API_KEY "
+            "en backend/.env para activar el procesamiento con IA."
+        )
         return None
+
+    idioma = "es" if idioma == "es" else "en"
+    system_prompt = get_system_prompt(idioma)
 
     # Acotamos el README para no saturar el contexto (primeras ~6000 chars)
     readme_trunc = (readme_text or "")[:6000]
+    instruccion = (
+        "INSTRUCTION: Analyze the following README and answer ONLY in English, "
+        "following the commercial format required in the system prompt."
+        if idioma == "en"
+        else "INSTRUCCIÓN: Analiza el README siguiente y responde ÚNICAMENTE en español, "
+        "siguiendo el formato comercial exigido en el system prompt."
+    )
     user_prompt = (
         f"REPOSITORIO: {repo_data.get('full_name')}\n"
         f"DESCRIPCIÓN ORIGINAL: {repo_data.get('description')}\n"
         f"LENGUAJE PRINCIPAL: {repo_data.get('language')}\n\n"
-        "INSTRUCCIÓN: Analiza el README siguiente y responde ÚNICAMENTE en español, "
-        "siguiendo el formato comercial exigido en el system prompt.\n\n"
+        f"{instruccion}\n\n"
         f"README:\n{readme_trunc}"
     )
 
@@ -339,10 +414,13 @@ async def procesar_readme_con_ia(readme_text: str, repo_data: dict) -> Optional[
         # --- Flujo oficial Gemini (SDK google-genai) ---
         if AI_PROVIDER == "gemini":
             if google_genai is None or GEMINI_CLIENT is None:
-                raise RuntimeError("Instala 'google-genai' para usar AI_PROVIDER=gemini")
+                raise RuntimeError(
+                    "AI_PROVIDER=gemini requiere 'google-genai' instalado y AI_API_KEY "
+                    "configurada (ver backend/.env.example)."
+                )
             response = await GEMINI_CLIENT.aio.models.generate_content(
                 model=AI_MODEL,
-                contents=f"{SYSTEM_PROMPT}\n\n{user_prompt}",
+                contents=f"{system_prompt}\n\n{user_prompt}",
                 config=google_types.GenerateContentConfig(
                     response_mime_type="application/json",
                 ),
@@ -354,7 +432,7 @@ async def procesar_readme_con_ia(readme_text: str, repo_data: dict) -> Optional[
                 msg = await client.messages.create(
                     model=AI_MODEL,
                     max_tokens=800,
-                    system=SYSTEM_PROMPT,
+                    system=system_prompt,
                     messages=[{"role": "user", "content": user_prompt}],
                 )
                 content = msg.content[0].text
@@ -362,7 +440,7 @@ async def procesar_readme_con_ia(readme_text: str, repo_data: dict) -> Optional[
                 resp = await client.chat.completions.create(
                     model=AI_MODEL,
                     messages=[
-                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt},
                     ],
                     temperature=0.3,
@@ -393,26 +471,41 @@ async def procesar_readme_con_ia(readme_text: str, repo_data: dict) -> Optional[
         data = json.loads(content)
         return data
     except Exception as e:
-        print(f"[FASE 3] LLM falló para {repo_data.get('full_name')}: {e}")
+        print(f"[FASE 3] LLM falló para {repo_data.get('full_name')}: {type(e).__name__}: {e}")
         return None
 
 
 # ---------------------------------------------------------------------------
 # Fase 4: Empaquetado
 # ---------------------------------------------------------------------------
-def construir_ficha(repo_data: dict, ia_data: Optional[dict], readme: str) -> dict:
+def construir_ficha(
+    repo_data: dict, ia_data: Optional[dict], readme: str, idioma: str = DEFAULT_IDIOMA
+) -> dict:
     """Une los datos crudos de GitHub con la ficha del LLM (o fallback)."""
+    idioma = "es" if idioma == "es" else "en"
     if not ia_data:
-        # Fallback sin IA: derivamos algo usable del repo real.
+        # Fallback sin IA: derivamos algo usable del repo real (sin texto crudo
+        # en otro idioma), aunque el LLM no esté disponible.
+        if idioma == "es":
+            default_desc = "Solución open-source lista para tu negocio."
+            tag = "[No procesado por IA] "
+            caracteristicas = ["Integración lista para usar", "Código abierto", "Comunidad activa"]
+            requisitos = ["Cuenta de GitHub", f"Entorno {repo_data['language']}"]
+        else:
+            default_desc = "Open-source solution ready for your business."
+            tag = "[Not processed by AI] "
+            caracteristicas = ["Ready-to-use integration", "Open source", "Active community"]
+            requisitos = ["GitHub account", f"{repo_data['language']} environment"]
+
+        raw_desc = repo_data["description"] or default_desc
         # Truncamos a 400 chars para no romper Sheets (límite 50k/célula) ni la UI.
-        raw_desc = repo_data["description"] or "Solución open-source lista para tu negocio."
         truncated = raw_desc if len(raw_desc) <= 400 else raw_desc[:397] + "..."
         ia_data = {
             "titulo_comercial": repo_data["name"].replace("-", " ").title(),
-            "propuesta_valor": "[No procesado por IA] " + truncated,
+            "propuesta_valor": tag + truncated,
             "tecnologias": [repo_data["language"]] if repo_data["language"] != "Desconocido" else [],
-            "caracteristicas": ["Integración lista para usar", "Código abierto", "Comunidad activa"],
-            "requisitos_externos": ["Cuenta de GitHub", f"Entorno {repo_data['language']}"],
+            "caracteristicas": caracteristicas,
+            "requisitos_externos": requisitos,
             "imagen_url": "",
         }
 
@@ -513,6 +606,7 @@ async def buscar_soluciones(payload: BusquedaRequest):
     query = (payload.query or "").strip()
     if not query:
         raise HTTPException(status_code=400, detail="El campo 'query' es requerido.")
+    idioma = "es" if (payload.idioma or "").lower() == "es" else "en"
 
     # ---- RUTA CRAWL4AI: el query es una URL directa ----
     if query.lower().startswith("http://") or query.lower().startswith("https://"):
@@ -539,10 +633,10 @@ async def buscar_soluciones(payload: BusquedaRequest):
                 print(f"[CRAWL4AI] Metadatos GitHub no disponibles para {owner}/{repo}: {e}")
                 # Mantiene repo_data del fallback local.
 
-        ia = await procesar_readme_con_ia(markdown, repo_data)
+        ia = await procesar_readme_con_ia(markdown, repo_data, idioma)
         if not ia:
             return []
-        ficha = construir_ficha(repo_data, ia, markdown)
+        ficha = construir_ficha(repo_data, ia, markdown, idioma)
 
         # Guardado automático en Google Sheets (no bloquea el loop; falla silencioso).
         fila = [
@@ -578,17 +672,21 @@ async def buscar_soluciones(payload: BusquedaRequest):
         extraidos = [e for e in extraidos if e]
 
         # Fase 3 + 4: procesar README con IA y empaquetar, DE FORMA SECUENCIAL
-        # para respetar el límite de 15 RPM de Google AI Studio (capa gratuita).
+        # para respetar el límite de peticiones/minuto de la capa gratuita del
+        # proveedor configurado (ver AI_RATE_LIMIT_SECONDS).
         async def procesar(e):
-            ia = await procesar_readme_con_ia(e["readme"], e["repo_data"])
-            return construir_ficha(e["repo_data"], ia, e["readme"])
+            ia = await procesar_readme_con_ia(e["readme"], e["repo_data"], idioma)
+            return construir_ficha(e["repo_data"], ia, e["readme"], idioma)
 
         fichas = []
         total = len(extraidos)
         for i, e in enumerate(extraidos, start=1):
             fichas.append(await procesar(e))
-            print(f"[RATE LIMIT] Esperando 10s... (Ficha {i}/{total})")
-            await asyncio.sleep(10)
+            if i < total:
+                print(
+                    f"[RATE LIMIT] Esperando {AI_RATE_LIMIT_SECONDS}s... (Ficha {i}/{total})"
+                )
+                await asyncio.sleep(AI_RATE_LIMIT_SECONDS)
         # Filtra cualquier None accidental
         fichas = [f for f in fichas if f]
 
@@ -620,7 +718,14 @@ async def buscar_soluciones(payload: BusquedaRequest):
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "ai_configured": bool(AI_API_KEY), "github_token": bool(GITHUB_TOKEN)}
+    return {
+        "status": "ok",
+        "ai_configured": bool(AI_API_KEY),
+        "ai_provider": AI_PROVIDER,
+        "ai_model": AI_MODEL,
+        "default_idioma": DEFAULT_IDIOMA,
+        "github_token": bool(GITHUB_TOKEN),
+    }
 
 
 if __name__ == "__main__":

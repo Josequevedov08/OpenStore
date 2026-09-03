@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { LayoutGrid, List, Star } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { LayoutGrid, List, Star, Languages, AlertTriangle } from 'lucide-react';
 import KineticGrid from './components/ui/kinetic-grid';
 import PromptInput from './components/ui/prompt-input';
 import ToggleGroup, { Toggle } from './components/ui/toggle-group';
@@ -9,14 +9,45 @@ import Pagination from './components/ui/pagination';
 import Modal from './components/ui/modal';
 import ExpandablePitch from './components/ui/expandable-pitch';
 
-const API_URL = 'https://app-repositorio-github.onrender.com/api/buscar-soluciones';
+const API_URL =
+  import.meta.env.VITE_API_URL ||
+  'https://app-repositorio-github.onrender.com/api/buscar-soluciones';
 
-const GLOBAL_STATS = [
-  { label: 'Repositorios Activos', value: '+20,430' },
-  { label: 'Categorías', value: '+25' },
-  { label: 'Instalaciones Hoy', value: '1,204' },
-  { label: 'Uptime', value: '99.9%' },
-];
+const LANG_KEY = 'appstore-idioma';
+
+// Textos de la interfaz por idioma. Inglés es el idioma por defecto.
+const STRINGS = {
+  en: {
+    heroTitle: 'Discover. Install. Scale.',
+    heroSubtitle:
+      'The direct bridge between technical GitHub repositories and your business. Search for any feature you need.',
+    placeholder: 'Search for a chatbot, a CRM, etc...',
+    searchBtn: 'Search',
+    stats: ['Active Repositories', 'Categories', 'Installs Today', 'Uptime'],
+    grid: 'Grid',
+    list: 'List',
+    loading: 'Searching for solutions…',
+    viewDetails: 'Get',
+    error: "Couldn't reach the server. Please try again in a moment.",
+    noResults: 'No results found. Try a different search.',
+  },
+  es: {
+    heroTitle: 'Descubre. Instala. Escala.',
+    heroSubtitle:
+      'El puente directo entre los repositorios técnicos de GitHub y tu negocio. Busca cualquier funcionalidad.',
+    placeholder: 'Busca un chatbot, un CRM, etc...',
+    searchBtn: 'Buscar',
+    stats: ['Repositorios Activos', 'Categorías', 'Instalaciones Hoy', 'Uptime'],
+    grid: 'Grid',
+    list: 'Lista',
+    loading: 'Buscando soluciones…',
+    viewDetails: 'Instalar',
+    error: 'No se pudo contactar al servidor. Intenta de nuevo en un momento.',
+    noResults: 'Sin resultados. Prueba con otra búsqueda.',
+  },
+};
+
+const GLOBAL_STAT_VALUES = ['+20,430', '+25', '1,204', '99.9%'];
 
 // Formatea estrellas estilo GitHub: 12400 -> 12.4k, 850 -> 850
 function fmtStars(v) {
@@ -25,89 +56,28 @@ function fmtStars(v) {
   return `${n}`;
 }
 
-// --- MODO MOCK DE EMERGENCIA ---
-const MOCK_SEED = [
-  {
-    id: 'mock-1',
-    categoria: 'E-Commerce',
-    titulo_comercial: 'WhatsBot Food Pro',
-    propuesta_valor:
-      'Chatbot de ventas para comida rápida en WhatsApp. Toma pedidos, calcula el total con impuestos y los envía al monitor de tu cocina automáticamente.',
-    requisitos_externos: ['Cuenta de WhatsApp Business', 'Token de API de OpenAI', 'Servidor Node.js 18+'],
-    estrellas: 12400,
-    ultima_actualizacion: 'Hace 3 días',
-    repoUrl: 'https://github.com',
-    tecnologias: ['Python', 'FastAPI', 'Docker'],
-    caracteristicas: ['Autocorrección de código', 'Conexión a base de datos', 'Manejo de estados'],
-    imagen_url: 'https://images.unsplash.com/photo-1618401471353-b98afee0b2eb?q=80&w=800&auto=format&fit=crop',
-    autor: 'Kushagra2103',
-    licencia: 'MIT',
-    forks: 34,
-    ultima_version: 'v2.1.0',
-    issues_abiertos: 45,
-    pull_requests: 12,
-    lenguaje_principal: 'TypeScript',
-    ultimo_commit: 'Hace 2 días',
-    readme:
-      'Módulo listo para producción que conecta tu catálogo con un asistente conversacional. Incluye webhooks de confirmación, reintentos automáticos y panel de métricas en tiempo real.',
-  },
-  {
-    id: 'mock-2',
-    categoria: 'POS',
-    titulo_comercial: 'OrderFlow POS',
-    propuesta_valor:
-      'Sistema de punto de venta open-source. Gestiona mesas, imprime tickets y concilia caja al cierre del día sin suscripciones mensuales.',
-    requisitos_externos: ['Docker instalado', 'PostgreSQL 14+', 'Clave API de Stripe'],
-    estrellas: 850,
-    ultima_actualizacion: 'Hace 1 semana',
-    repoUrl: 'https://github.com',
-    tecnologias: ['Python', 'FastAPI', 'Docker'],
-    caracteristicas: ['Autocorrección de código', 'Conexión a base de datos', 'Manejo de estados'],
-    imagen_url: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?q=80&w=800&auto=format&fit=crop',
-    autor: 'Kushagra2103',
-    licencia: 'MIT',
-    forks: 34,
-    ultima_version: 'v2.1.0',
-    issues_abiertos: 45,
-    pull_requests: 12,
-    lenguaje_principal: 'TypeScript',
-    ultimo_commit: 'Hace 2 días',
-    readme:
-      'POS modular con arquitectura de plugins. Soporta múltiples terminales, impresión térmica y conciliación automática con tu pasarela de pagos.',
-  },
-  {
-    id: 'mock-3',
-    categoria: 'Logística',
-    titulo_comercial: 'DeliveryRouter',
-    propuesta_valor:
-      'Optimizador de rutas de entrega para repartidores. Reduce el tiempo de envío hasta un 30% agrupando pedidos por zona.',
-    requisitos_externos: ['Google Maps API Key', 'Instancia Redis', 'Cuenta de correo SMTP'],
-    estrellas: 3200,
-    ultima_actualizacion: 'Hace 5 días',
-    repoUrl: 'https://github.com',
-    tecnologias: ['Python', 'FastAPI', 'Docker'],
-    caracteristicas: ['Autocorrección de código', 'Conexión a base de datos', 'Manejo de estados'],
-    imagen_url: 'https://images.unsplash.com/photo-1494412574643-ff11b0a5c1c3?q=80&w=800&auto=format&fit=crop',
-    autor: 'Kushagra2103',
-    licencia: 'MIT',
-    forks: 34,
-    ultima_version: 'v2.1.0',
-    issues_abiertos: 45,
-    pull_requests: 12,
-    lenguaje_principal: 'TypeScript',
-    ultimo_commit: 'Hace 2 días',
-    readme:
-      'Motor de enrutamiento basado en grafos que recalcula trayectorias en tiempo real según tráfico y prioridad de entrega.',
-  },
-];
+function LanguageSwitch({ idioma, onChange }) {
+  return (
+    <div className="inline-flex items-center gap-1 rounded-xl border border-white/10 bg-[#1A1A1A] p-1">
+      <Languages className="ml-1.5 h-4 w-4 text-zinc-500" />
+      {['en', 'es'].map((code) => (
+        <button
+          key={code}
+          type="button"
+          onClick={() => onChange(code)}
+          className={[
+            'rounded-lg px-3 py-1.5 text-sm font-semibold uppercase transition-colors',
+            idioma === code ? 'bg-white/10 text-white shadow-inner' : 'text-zinc-400 hover:text-white',
+          ].join(' ')}
+        >
+          {code}
+        </button>
+      ))}
+    </div>
+  );
+}
 
-const expandMock = (n) =>
-  Array.from({ length: n }).map((_, i) => {
-    const base = MOCK_SEED[i % MOCK_SEED.length];
-    return { ...base, id: `mock-${i + 1}`, titulo_comercial: `${base.titulo_comercial} #${i + 1}` };
-  });
-
-function Card({ item, viewMode, onOpen }) {
+function Card({ item, viewMode, onOpen, t }) {
   const isList = viewMode === 'list';
   const stars = fmtStars(item.estrellas);
 
@@ -117,7 +87,7 @@ function Card({ item, viewMode, onOpen }) {
         <div className="flex min-w-0 items-center gap-4">
           <img src={item.imagen_url} alt={item.titulo_comercial} className="h-14 w-14 shrink-0 rounded-lg object-cover" />
           <div className="min-w-0">
-            <span className="block text-xs font-medium text-zinc-400">{item.categoria}</span>
+            <span className="block text-xs font-medium text-zinc-400">{item.lenguaje_principal}</span>
             <h2 className="truncate text-base font-semibold text-white">{item.titulo_comercial}</h2>
           </div>
         </div>
@@ -131,8 +101,8 @@ function Card({ item, viewMode, onOpen }) {
             <Star className="h-4 w-4 fill-amber-300" />
             {stars}
           </span>
-          <div className="w-44">
-            <StarOnGithub texto="Ver Repositorio" onClick={() => onOpen(item)} className="!py-2 !text-xs" />
+          <div className="w-32">
+            <StarOnGithub texto={t.viewDetails} onClick={() => onOpen(item)} className="!py-2 !text-xs" />
           </div>
         </div>
       </div>
@@ -149,7 +119,7 @@ function Card({ item, viewMode, onOpen }) {
       />
       <div className="flex flex-1 flex-col p-5">
         <span className="mb-2 inline-block w-fit rounded-full bg-white/10 px-2.5 py-0.5 text-xs font-medium text-zinc-300">
-          {item.categoria}
+          {item.lenguaje_principal}
         </span>
         <h2
           onClick={() => onOpen(item)}
@@ -161,7 +131,7 @@ function Card({ item, viewMode, onOpen }) {
 
         {Array.isArray(item.requisitos_externos) && item.requisitos_externos.length > 0 && (
           <ul className="mt-4 flex flex-col gap-1.5">
-            {item.requisitos_externos.map((req, i) => (
+            {item.requisitos_externos.slice(0, 3).map((req, i) => (
               <li key={i} className="flex items-center gap-2 text-sm text-zinc-300">
                 <span className="h-1.5 w-1.5 rounded-full bg-gradient-to-r from-blue-400 to-cyan-300" />
                 {req}
@@ -178,7 +148,7 @@ function Card({ item, viewMode, onOpen }) {
             </span>
             <span>{item.ultima_actualizacion}</span>
           </div>
-          <StarOnGithub texto="Ver Repositorio" onClick={() => onOpen(item)} />
+          <StarOnGithub texto={t.viewDetails} onClick={() => onOpen(item)} />
         </div>
       </div>
     </article>
@@ -186,12 +156,35 @@ function Card({ item, viewMode, onOpen }) {
 }
 
 export default function App() {
+  const [idioma, setIdioma] = useState(() => {
+    try {
+      return localStorage.getItem(LANG_KEY) === 'es' ? 'es' : 'en';
+    } catch {
+      return 'en';
+    }
+  });
+  const t = STRINGS[idioma];
+
   const [query, setQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [resultados, setResultados] = useState([]);
+  const [error, setError] = useState('');
   const [viewMode, setViewMode] = useState('grid');
   const [currentPage, setCurrentPage] = useState(1);
   const [proyectoActivo, setProyectoActivo] = useState(null);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(LANG_KEY, idioma);
+    } catch {
+      // Almacenamiento no disponible: no es crítico, seguimos en memoria.
+    }
+  }, [idioma]);
+
+  const globalStats = useMemo(
+    () => t.stats.map((label, i) => ({ label, value: GLOBAL_STAT_VALUES[i] })),
+    [t]
+  );
 
   const limit = viewMode === 'grid' ? 9 : 10;
   const totalPages = Math.max(1, Math.ceil(resultados.length / limit));
@@ -202,21 +195,22 @@ export default function App() {
     setQuery(q);
     if (!q.trim()) return;
     setIsSearching(true);
+    setError('');
     setResultados([]);
     try {
       const res = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: q }),
+        body: JSON.stringify({ query: q, idioma }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       const lista = Array.isArray(data) ? data : data.resultados ?? data.soluciones ?? [];
       setResultados(lista);
-    } catch (err) {
-      // Modo mock: el backend no está disponible, inyectamos datos de demostración.
-      setResultados(expandMock(viewMode === 'grid' ? 27 : 30));
       setCurrentPage(1);
+    } catch (err) {
+      setResultados([]);
+      setError(t.error);
     } finally {
       setIsSearching(false);
     }
@@ -232,24 +226,29 @@ export default function App() {
       {/* Contenido con Scroll (el body es quien scrollea) */}
       <div className="relative z-10 w-full overflow-x-hidden">
         <div className="mx-auto max-w-7xl px-4 py-12">
+          {/* Selector de idioma */}
+          <div className="mb-6 flex w-full justify-end">
+            <LanguageSwitch idioma={idioma} onChange={setIdioma} />
+          </div>
+
           {/* Título héroe */}
-          <h1 className="mb-4 text-center text-5xl font-extrabold tracking-tight text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)] md:text-7xl">
-            Descubre. Instala. Escala.
+          <h1 className="mb-4 text-center text-4xl font-extrabold tracking-tight text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)] sm:text-5xl md:text-7xl">
+            {t.heroTitle}
           </h1>
-          <p className="mx-auto mb-10 max-w-2xl text-center text-lg text-zinc-400">
-            El puente directo entre los repositorios técnicos de GitHub y tu negocio. Busca cualquier funcionalidad.
+          <p className="mx-auto mb-10 max-w-2xl text-center text-base text-zinc-400 sm:text-lg">
+            {t.heroSubtitle}
           </p>
 
           {/* Buscador */}
           <div className="relative flex w-full items-center justify-center overflow-hidden py-4">
             <div className="w-full max-w-2xl p-4">
-              <PromptInput onSubmit={handleSearch} placeholder="Busca un chatbot, un CRM, etc..." />
+              <PromptInput onSubmit={handleSearch} placeholder={t.placeholder} submitLabel={t.searchBtn} />
             </div>
           </div>
 
           {/* Tarjetas de estadísticas globales */}
           <div className="grid w-full grid-cols-2 gap-4 py-6 md:grid-cols-4">
-            {GLOBAL_STATS.map((s) => (
+            {globalStats.map((s) => (
               <StatisticCard1 key={s.label} label={s.label} value={s.value} />
             ))}
           </div>
@@ -257,15 +256,24 @@ export default function App() {
           {/* Selector de vista */}
           <div className="flex w-full justify-end py-6">
             <ToggleGroup type="single" value={viewMode} onValueChange={(v) => { setViewMode(v); setCurrentPage(1); }}>
-              <Toggle value="grid"><LayoutGrid className="h-4 w-4" /> Grid</Toggle>
-              <Toggle value="list"><List className="h-4 w-4" /> List</Toggle>
+              <Toggle value="grid"><LayoutGrid className="h-4 w-4" /> {t.grid}</Toggle>
+              <Toggle value="list"><List className="h-4 w-4" /> {t.list}</Toggle>
             </ToggleGroup>
           </div>
 
           {isSearching ? (
             <div className="flex w-full flex-col items-center gap-4 py-24 text-zinc-400">
               <span className="h-8 w-8 animate-spin rounded-full border-2 border-white/10 border-t-blue-400" />
-              Buscando soluciones…
+              {t.loading}
+            </div>
+          ) : error ? (
+            <div className="mx-auto flex max-w-xl flex-col items-center gap-3 rounded-2xl border border-red-500/20 bg-red-500/5 px-6 py-10 text-center text-zinc-300">
+              <AlertTriangle className="h-6 w-6 text-red-400" />
+              <p>{error}</p>
+            </div>
+          ) : query && resultados.length === 0 ? (
+            <div className="flex w-full flex-col items-center gap-2 py-24 text-zinc-500">
+              <p>{t.noResults}</p>
             </div>
           ) : (
             resultados.length > 0 && (
@@ -273,12 +281,12 @@ export default function App() {
                 <div
                   className={[
                     viewMode === 'grid'
-                      ? 'grid gap-6 [grid-template-columns:repeat(auto-fill,minmax(320px,1fr))]'
+                      ? 'grid gap-6 [grid-template-columns:repeat(auto-fill,minmax(280px,1fr))]'
                       : 'flex flex-col',
                   ].join(' ')}
                 >
                   {paginatedData.map((item) => (
-                    <Card key={item.id} item={item} viewMode={viewMode} onOpen={setProyectoActivo} />
+                    <Card key={item.id} item={item} viewMode={viewMode} onOpen={setProyectoActivo} t={t} />
                   ))}
                 </div>
 
@@ -288,7 +296,7 @@ export default function App() {
                     count={totalPages}
                     page={currentPage}
                     onPageChange={setCurrentPage}
-                    label="Resultados de búsqueda"
+                    label="Search results"
                   />
                 </div>
               </div>
@@ -297,7 +305,7 @@ export default function App() {
         </div>
       </div>
 
-      <Modal proyecto={proyectoActivo} onClose={() => setProyectoActivo(null)} />
+      <Modal proyecto={proyectoActivo} onClose={() => setProyectoActivo(null)} idioma={idioma} />
     </div>
   );
 }
