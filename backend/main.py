@@ -14,6 +14,7 @@ import asyncio
 import json
 import os
 import random
+import time
 from datetime import datetime, timezone
 from typing import Any, Optional
 
@@ -76,7 +77,9 @@ AI_API_KEY = os.getenv("AI_API_KEY", "")
 DEFAULT_MODELS = {
     "openai": "gpt-4o-mini",
     "anthropic": "claude-3-5-sonnet-latest",
-    "groq": "llama3-8b-8192",
+    # Free tier de Groq: 30 RPM / 14,400 peticiones por DÍA — mucho más
+    # generoso que cualquier capa gratuita de Gemini.
+    "groq": "llama-3.1-8b-instant",
     # "-lite" es más limitado en capacidad, pero su cuota gratuita diaria es
     # muchísimo más generosa (probamos 12 llamadas en paralelo sin fallos).
     # gemini-3.6-flash "normal" solo permite 20 peticiones/día en la capa
@@ -85,11 +88,47 @@ DEFAULT_MODELS = {
 }
 AI_MODEL = os.getenv("AI_MODEL") or DEFAULT_MODELS.get(AI_PROVIDER, "gpt-4o-mini")
 
-# Cliente oficial de Gemini (SDK google-genai)
-if AI_PROVIDER == "gemini" and AI_API_KEY and google_genai is not None:
-    GEMINI_CLIENT = google_genai.Client(api_key=AI_API_KEY)
-else:
-    GEMINI_CLIENT = None
+# Proveedor de respaldo (opcional): si el proveedor principal falla por
+# cuota agotada, timeout, o cualquier error, reintentamos ESE repo puntual
+# con un segundo proveedor/clave distintos en vez de rendirnos directo al
+# fallback "Análisis pendiente". Combina la cuota gratuita de dos servicios
+# distintos (p.ej. Gemini + Groq) en vez de agotar solo uno.
+AI_FALLBACK_PROVIDER = os.getenv("AI_FALLBACK_PROVIDER", "").lower()
+AI_FALLBACK_API_KEY = os.getenv("AI_FALLBACK_API_KEY", "")
+AI_FALLBACK_MODEL = os.getenv("AI_FALLBACK_MODEL") or DEFAULT_MODELS.get(
+    AI_FALLBACK_PROVIDER, ""
+)
+
+# ---------------------------------------------------------------------------
+# Caché de búsquedas: la misma consulta + idioma no vuelve a gastar cuota de
+# IA/GitHub dentro de la ventana de TTL. Es en memoria (se reinicia si el
+# proceso se reinicia), suficiente para una sola instancia como esta.
+# ---------------------------------------------------------------------------
+SEARCH_CACHE_TTL_SECONDS = int(os.getenv("SEARCH_CACHE_TTL_SECONDS", "900"))  # 15 min
+_SEARCH_CACHE_MAX_ENTRIES = 500
+_search_cache: dict[str, tuple[float, list]] = {}
+
+
+def _cache_key(query: str, idioma: str) -> str:
+    return f"{idioma}:{query.strip().lower()}"
+
+
+def _cache_get(key: str) -> Optional[list]:
+    entry = _search_cache.get(key)
+    if not entry:
+        return None
+    ts, data = entry
+    if time.time() - ts > SEARCH_CACHE_TTL_SECONDS:
+        _search_cache.pop(key, None)
+        return None
+    return data
+
+
+def _cache_set(key: str, data: list) -> None:
+    _search_cache[key] = (time.time(), data)
+    if len(_search_cache) > _SEARCH_CACHE_MAX_ENTRIES:
+        oldest = min(_search_cache, key=lambda k: _search_cache[k][0])
+        _search_cache.pop(oldest, None)
 
 # AQUI ESTA EL CAMBIO DE CORS APLICADO
 CORS_ORIGINS = [
@@ -399,39 +438,104 @@ AI_CONCURRENCY = int(
 AI_CALL_TIMEOUT_SECONDS = float(os.getenv("AI_CALL_TIMEOUT_SECONDS", "30"))
 
 
-def _cliente_ia():
-    """Devuelve un cliente según el proveedor configurado."""
-    if not AI_API_KEY:
-        raise RuntimeError("Falta AI_API_KEY para usar el proveedor de IA.")
+def _cliente_ia(provider: str, api_key: str):
+    """Devuelve un cliente async para el proveedor y clave indicados."""
+    if not api_key:
+        raise RuntimeError(f"Falta la API key para el proveedor '{provider}'.")
 
-    if AI_PROVIDER == "anthropic":
+    if provider == "anthropic":
         try:
             import anthropic  # type: ignore
         except ImportError:
-            raise RuntimeError("Instala 'anthropic' para usar AI_PROVIDER=anthropic")
-        return anthropic.AsyncAnthropic(api_key=AI_API_KEY)
+            raise RuntimeError("Instala 'anthropic' para usar ese proveedor.")
+        return anthropic.AsyncAnthropic(api_key=api_key)
 
-    if AI_PROVIDER == "groq":
+    if provider == "groq":
         from openai import AsyncOpenAI
         # Groq es compatible con la API de OpenAI: solo cambiamos el base_url.
-        return AsyncOpenAI(
-            api_key=AI_API_KEY,
-            base_url="https://api.groq.com/openai/v1",
-        )
+        return AsyncOpenAI(api_key=api_key, base_url="https://api.groq.com/openai/v1")
 
     # openai (por defecto)
     from openai import AsyncOpenAI
-    return AsyncOpenAI(api_key=AI_API_KEY)
+    return AsyncOpenAI(api_key=api_key)
+
+
+async def _llamar_llm(provider: str, api_key: str, model: str, system_prompt: str, user_prompt: str) -> str:
+    """Llama al LLM del proveedor indicado y devuelve el texto crudo de la respuesta."""
+    if provider == "gemini":
+        if google_genai is None:
+            raise RuntimeError("Instala 'google-genai' para usar ese proveedor.")
+        if not api_key:
+            raise RuntimeError("Falta la API key para el proveedor 'gemini'.")
+        cliente = google_genai.Client(api_key=api_key)
+        response = await cliente.aio.models.generate_content(
+            model=model,
+            contents=f"{system_prompt}\n\n{user_prompt}",
+            config=google_types.GenerateContentConfig(response_mime_type="application/json"),
+        )
+        return response.text
+
+    client = _cliente_ia(provider, api_key)
+    if provider == "anthropic":
+        msg = await client.messages.create(
+            model=model,
+            max_tokens=800,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_prompt}],
+        )
+        return msg.content[0].text
+
+    resp = await client.chat.completions.create(
+        model=model,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        temperature=0.3,
+        response_format={"type": "json_object"},
+    )
+    return resp.choices[0].message.content
+
+
+def _extraer_json(content: str) -> dict:
+    """Limpieza exhaustiva del JSON: elimina fences markdown ```json ... ```,
+    backticks sueltos, espacios, y cualquier texto antes/después del objeto."""
+    content = content.strip()
+    # Caso 1: envuelto en ```json ... ``` o ``` ... ```
+    if content.startswith("```"):
+        parts = content.split("```")
+        if len(parts) >= 3:
+            content = parts[1]
+            if content.lower().startswith("json"):
+                content = content[4:]
+    content = content.strip()
+    if content.startswith("{") and content.endswith("}"):
+        pass  # ya es un objeto JSON limpio
+    else:
+        # Caso 2: el modelo devuelve texto + JSON + texto (extraemos el
+        # primer { ... } balanceado)
+        start = content.find("{")
+        end = content.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            content = content[start : end + 1]
+    return json.loads(content)
 
 
 async def procesar_readme_con_ia(
     readme_text: str, repo_data: dict, idioma: str = DEFAULT_IDIOMA
 ) -> Optional[dict]:
     """
-    Envía el README al LLM y parsea la ficha comercial.
-    Si no hay API key o falla, devuelve None (se usará un fallback).
+    Envía el README al LLM y parsea la ficha comercial. Intenta primero el
+    proveedor principal (AI_PROVIDER); si falla (cuota, timeout, error) y hay
+    un proveedor de respaldo configurado (AI_FALLBACK_PROVIDER), reintenta
+    ESE repo puntual con el respaldo antes de rendirse. Si nada funciona,
+    devuelve None (se usará la ficha de fallback "Análisis pendiente").
     """
-    if not AI_API_KEY:
+    intentos = [(AI_PROVIDER, AI_API_KEY, AI_MODEL)]
+    if AI_FALLBACK_PROVIDER and AI_FALLBACK_API_KEY:
+        intentos.append((AI_FALLBACK_PROVIDER, AI_FALLBACK_API_KEY, AI_FALLBACK_MODEL))
+
+    if not any(key for _, key, _ in intentos):
         print(
             "[FASE 3] AI_API_KEY no configurada: define AI_PROVIDER y AI_API_KEY "
             "en backend/.env para activar el procesamiento con IA."
@@ -458,80 +562,26 @@ async def procesar_readme_con_ia(
         f"README:\n{readme_trunc}"
     )
 
-    async def _llamar_llm() -> str:
-        # --- Flujo oficial Gemini (SDK google-genai) ---
-        if AI_PROVIDER == "gemini":
-            if google_genai is None or GEMINI_CLIENT is None:
-                raise RuntimeError(
-                    "AI_PROVIDER=gemini requiere 'google-genai' instalado y AI_API_KEY "
-                    "configurada (ver backend/.env.example)."
-                )
-            response = await GEMINI_CLIENT.aio.models.generate_content(
-                model=AI_MODEL,
-                contents=f"{system_prompt}\n\n{user_prompt}",
-                config=google_types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                ),
+    for provider, api_key, model in intentos:
+        if not api_key:
+            continue
+        try:
+            content = await asyncio.wait_for(
+                _llamar_llm(provider, api_key, model, system_prompt, user_prompt),
+                timeout=AI_CALL_TIMEOUT_SECONDS,
             )
-            return response.text
-
-        client = _cliente_ia()
-        if AI_PROVIDER == "anthropic":
-            msg = await client.messages.create(
-                model=AI_MODEL,
-                max_tokens=800,
-                system=system_prompt,
-                messages=[{"role": "user", "content": user_prompt}],
+            return _extraer_json(content)
+        except asyncio.TimeoutError:
+            print(
+                f"[FASE 3] {provider} excedió {AI_CALL_TIMEOUT_SECONDS}s para "
+                f"{repo_data.get('full_name')}."
             )
-            return msg.content[0].text
+        except Exception as e:
+            print(f"[FASE 3] {provider} falló para {repo_data.get('full_name')}: {type(e).__name__}: {e}")
+        # Si queda otro proveedor en la lista, seguimos al siguiente intento;
+        # si era el último, el bucle termina y devolvemos None abajo.
 
-        resp = await client.chat.completions.create(
-            model=AI_MODEL,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            temperature=0.3,
-            response_format={"type": "json_object"},
-        )
-        return resp.choices[0].message.content
-
-    try:
-        # El SDK del proveedor no siempre trae su propio timeout de red; sin
-        # esto, una llamada colgada bloquearía toda la búsqueda indefinidamente.
-        content = await asyncio.wait_for(_llamar_llm(), timeout=AI_CALL_TIMEOUT_SECONDS)
-
-        # Limpieza exhaustiva del JSON: elimina fences markdown ```json ... ```, backticks sueltos,
-        # espacios, y cualquier texto antes/después del objeto JSON.
-        content = content.strip()
-        # Caso 1: envuelto en ```json ... ``` o ``` ... ```
-        if content.startswith("```"):
-            parts = content.split("```")
-            if len(parts) >= 3:
-                content = parts[1]
-                if content.lower().startswith("json"):
-                    content = content[4:]
-        # Caso 2: el modelo devuelve texto + JSON + texto (extraemos el primer { ... } balanceado)
-        content = content.strip()
-        if content.startswith("{") and content.endswith("}"):
-            pass  # ya es un objeto JSON limpio
-        else:
-            # Buscamos el primer { y el último } y nos quedamos con ese rango
-            start = content.find("{")
-            end = content.rfind("}")
-            if start != -1 and end != -1 and end > start:
-                content = content[start : end + 1]
-        data = json.loads(content)
-        return data
-    except asyncio.TimeoutError:
-        print(
-            f"[FASE 3] LLM excedió {AI_CALL_TIMEOUT_SECONDS}s para "
-            f"{repo_data.get('full_name')}: se usa fallback."
-        )
-        return None
-    except Exception as e:
-        print(f"[FASE 3] LLM falló para {repo_data.get('full_name')}: {type(e).__name__}: {e}")
-        return None
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -692,6 +742,12 @@ async def buscar_soluciones(payload: BusquedaRequest):
         raise HTTPException(status_code=400, detail="El campo 'query' es requerido.")
     idioma = "es" if (payload.idioma or "").lower() == "es" else "en"
 
+    cache_key = _cache_key(query, idioma)
+    cacheado = _cache_get(cache_key)
+    if cacheado is not None:
+        print(f"[CACHE] Hit para '{query}' ({idioma}), sin gastar cuota de IA/GitHub.")
+        return cacheado
+
     # ---- RUTA CRAWL4AI: el query es una URL directa que NO es de GitHub ----
     # Una URL de GitHub (repo o perfil) se resuelve más rápido y sin depender
     # de Crawl4AI (pesado y opcional) vía la API oficial en buscar_repositorios,
@@ -743,6 +799,9 @@ async def buscar_soluciones(payload: BusquedaRequest):
         except Exception as e:
             print(f"[SHEETS] Error en guardado (no fatal): {e}")
 
+        # `ia` ya fue validado como no-None arriba, así que esta ficha
+        # siempre viene de una respuesta real de IA (nunca del fallback).
+        _cache_set(cache_key, [ficha])
         return [ficha]
 
     # ---- RUTA GITHUB: búsqueda normal / por usuario / URL de repo ----
@@ -805,6 +864,14 @@ async def buscar_soluciones(payload: BusquedaRequest):
                 print(f"[SHEETS] Error en guardado (no fatal): {e}")
 
         await asyncio.gather(*(_guardar_ficha(f) for f in fichas))
+        # Solo cacheamos si al menos una ficha fue realmente procesada por
+        # IA — así una búsqueda que salió toda en fallback (cuota agotada)
+        # no queda "congelada" en caché mostrando puros badges de pendiente.
+        hubo_ia = any("pendiente" not in f.get("propuesta_valor", "").lower()
+                      and "pending" not in f.get("propuesta_valor", "").lower()
+                      for f in fichas)
+        if fichas and hubo_ia:
+            _cache_set(cache_key, fichas)
         return fichas
 
 
@@ -815,8 +882,11 @@ async def health():
         "ai_configured": bool(AI_API_KEY),
         "ai_provider": AI_PROVIDER,
         "ai_model": AI_MODEL,
+        "ai_fallback_configured": bool(AI_FALLBACK_PROVIDER and AI_FALLBACK_API_KEY),
+        "ai_fallback_provider": AI_FALLBACK_PROVIDER or None,
         "default_idioma": DEFAULT_IDIOMA,
         "github_token": bool(GITHUB_TOKEN),
+        "search_cache_ttl_seconds": SEARCH_CACHE_TTL_SECONDS,
     }
 
 
