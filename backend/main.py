@@ -20,7 +20,7 @@ from typing import Any, Optional
 
 import httpx
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Response
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -135,8 +135,8 @@ _SEARCH_CACHE_MAX_ENTRIES = 500
 _search_cache: dict[str, tuple[float, list]] = {}
 
 
-def _cache_key(query: str, idioma: str) -> str:
-    return f"{idioma}:{query.strip().lower()}"
+def _cache_key(query: str, idioma: str, pagina: int = 1, orden: str = "stars") -> str:
+    return f"{idioma}:{orden}:{pagina}:{query.strip().lower()}"
 
 
 def _cache_get(key: str) -> Optional[list]:
@@ -155,6 +155,28 @@ def _cache_set(key: str, data: list) -> None:
     if len(_search_cache) > _SEARCH_CACHE_MAX_ENTRIES:
         oldest = min(_search_cache, key=lambda k: _search_cache[k][0])
         _search_cache.pop(oldest, None)
+
+
+# ---------------------------------------------------------------------------
+# Rate limiting simple por IP: evita que una sola persona (a propósito o por
+# error, p.ej. un script) agote la cuota compartida de IA/GitHub. En memoria,
+# suficiente para una sola instancia como esta.
+# ---------------------------------------------------------------------------
+RATE_LIMIT_MAX_PETICIONES = _env_int("RATE_LIMIT_MAX_PETICIONES", 10)
+RATE_LIMIT_VENTANA_SEGUNDOS = _env_int("RATE_LIMIT_VENTANA_SEGUNDOS", 300)  # 5 min
+_rate_limit_hits: dict[str, list[float]] = {}
+
+
+def _check_rate_limit(ip: str) -> bool:
+    """True si la IP puede seguir buscando; False si excedió el límite."""
+    now = time.time()
+    hits = _rate_limit_hits.setdefault(ip, [])
+    while hits and hits[0] < now - RATE_LIMIT_VENTANA_SEGUNDOS:
+        hits.pop(0)
+    if len(hits) >= RATE_LIMIT_MAX_PETICIONES:
+        return False
+    hits.append(now)
+    return True
 
 # AQUI ESTA EL CAMBIO DE CORS APLICADO
 CORS_ORIGINS = [
@@ -195,6 +217,8 @@ app.add_middleware(
 class BusquedaRequest(BaseModel):
     query: str
     idioma: Optional[str] = "en"  # "en" (por defecto) o "es"
+    pagina: Optional[int] = 1  # para "cargar más": trae la siguiente tanda
+    orden: Optional[str] = "stars"  # "stars" (por defecto) o "updated"
 
 
 # ---------------------------------------------------------------------------
@@ -260,20 +284,29 @@ PROFILE_URL_RE = re.compile(r"^https?://github\.com/([^/\s?#]+)/?$", re.IGNORECA
 USERNAME_SHORTHAND_RE = re.compile(r"^@([A-Za-z0-9][A-Za-z0-9-]{0,38})$")
 
 
-async def buscar_repositorios(client: httpx.AsyncClient, query: str, per_page: int = 12) -> list:
+async def buscar_repositorios(
+    client: httpx.AsyncClient,
+    query: str,
+    per_page: int = 12,
+    pagina: int = 1,
+    orden: str = "stars",
+) -> list:
     q = query.strip()
 
     # --- Ruta A: URL directa a un repo (owner/repo) ---
-    m = URL_RE.search(q)
-    if m:
-        owner, repo = m.group(1), m.group(2).replace(".git", "")
-        try:
-            resp = await client.get(f"{GITHUB_API}/repos/{owner}/{repo}", timeout=15)
-            if resp.status_code == 200:
-                return [resp.json()]
-            # Si falla (404, privado, etc.) no rompemos: caemos a búsqueda normal.
-        except Exception as e:
-            print(f"[FASE 1] URL repo falló, probando búsqueda normal: {e}")
+    # Solo tiene sentido en la primera "página" — una URL de repo es un
+    # resultado único, no algo de lo que se pueda "cargar más".
+    if pagina <= 1:
+        m = URL_RE.search(q)
+        if m:
+            owner, repo = m.group(1), m.group(2).replace(".git", "")
+            try:
+                resp = await client.get(f"{GITHUB_API}/repos/{owner}/{repo}", timeout=15)
+                if resp.status_code == 200:
+                    return [resp.json()]
+                # Si falla (404, privado, etc.) no rompemos: caemos a búsqueda normal.
+            except Exception as e:
+                print(f"[FASE 1] URL repo falló, probando búsqueda normal: {e}")
 
     # --- Ruta A2: URL de perfil ("github.com/usuario") o atajo "@usuario" ---
     # En ambos casos reescribimos la consulta al calificador `user:` que ya
@@ -287,9 +320,10 @@ async def buscar_repositorios(client: httpx.AsyncClient, query: str, per_page: i
     # "user:usuario", "language:python", "stars:>100", etc.) ---
     params = {
         "q": q,
-        "sort": "stars",
+        "sort": "stars" if orden not in ("stars", "updated") else orden,
         "order": "desc",
         "per_page": per_page,
+        "page": max(1, pagina),
     }
     try:
         resp = await client.get(f"{GITHUB_API}/search/repositories", params=params, timeout=15)
@@ -760,16 +794,26 @@ def _guardar_en_sheets(fila: list) -> None:
 # Endpoint principal
 # ---------------------------------------------------------------------------
 @app.post("/api/buscar-soluciones")
-async def buscar_soluciones(payload: BusquedaRequest):
+async def buscar_soluciones(payload: BusquedaRequest, request: Request):
     query = (payload.query or "").strip()
     if not query:
         raise HTTPException(status_code=400, detail="El campo 'query' es requerido.")
-    idioma = "es" if (payload.idioma or "").lower() == "es" else "en"
 
-    cache_key = _cache_key(query, idioma)
+    ip = request.client.host if request.client else "desconocida"
+    if not _check_rate_limit(ip):
+        raise HTTPException(
+            status_code=429,
+            detail="Demasiadas búsquedas en poco tiempo. Espera un minuto e intenta de nuevo.",
+        )
+
+    idioma = "es" if (payload.idioma or "").lower() == "es" else "en"
+    pagina = max(1, payload.pagina or 1)
+    orden = payload.orden if payload.orden in ("stars", "updated") else "stars"
+
+    cache_key = _cache_key(query, idioma, pagina, orden)
     cacheado = _cache_get(cache_key)
     if cacheado is not None:
-        print(f"[CACHE] Hit para '{query}' ({idioma}), sin gastar cuota de IA/GitHub.")
+        print(f"[CACHE] Hit para '{query}' ({idioma}, pág. {pagina}), sin gastar cuota de IA/GitHub.")
         return cacheado
 
     # ---- RUTA CRAWL4AI: el query es una URL directa que NO es de GitHub ----
@@ -832,7 +876,7 @@ async def buscar_soluciones(payload: BusquedaRequest):
     timeout = httpx.Timeout(20.0)
     async with httpx.AsyncClient(headers=HEADERS, timeout=timeout, follow_redirects=True) as client:
         # Fase 1
-        repos = await buscar_repositorios(client, query, per_page=12)
+        repos = await buscar_repositorios(client, query, per_page=12, pagina=pagina, orden=orden)
         if not repos:
             return []  # Sin resultados -> array vacío (frontend muestra mock si quiere)
 

@@ -9,6 +9,7 @@ interface PromptInputProps {
   placeholder?: string;
   submitLabel?: string;
   className?: string;
+  id?: string;
 }
 
 /**
@@ -20,6 +21,7 @@ export default function PromptInput({
   placeholder = "Escribe tu búsqueda...",
   submitLabel = "Buscar",
   className,
+  id,
 }: PromptInputProps) {
   const [value, setValue] = useState("");
 
@@ -48,6 +50,7 @@ export default function PromptInput({
     >
       <Search className="h-5 w-5 shrink-0 text-zinc-400" />
       <input
+        id={id}
         type="text"
         value={value}
         onChange={(e) => setValue(e.target.value)}
