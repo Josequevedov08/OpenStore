@@ -2,6 +2,14 @@
 
 High-level record of the work done on OpenStore, newest first. For the full commit-by-commit detail, see the git history.
 
+## 2026-09-03 (later) — Admin panel token-exfiltration fix, manual update
+
+### Fixed
+- **Security: `admin.html` would send the admin token to any host named in its own `?api=` URL parameter**, with no allow-list. A link to the real Vercel domain (valid padlock, real domain) crafted as `admin.html?api=https://attacker.example` would make the page itself hand the visitor's `ADMIN_TOKEN` to the attacker's server the moment they typed it in — a textbook token-exfiltration phishing link, and the visitor would have no way to tell from the URL bar alone. Fixed with a strict allow-list (the production backend or `localhost`, for local dev only); any other value is ignored and never persisted to `localStorage`, even if one had been saved from an earlier, now-revoked visit. Reported by the project owner while reviewing the panel; verified fixed by simulating the exact attack against the running page.
+
+### Added
+- Manual (`/manual.html`, EN/ES): a new "Extra tools" section documenting favorites, compare, filters, light/dark theme, install history, and installing as a PWA — the visual guide previously only covered search → install and hadn't caught up with that feature batch.
+
 ## 2026-09-03 — Theme, favorites, compare, filters, history, PWA, admin panel
 
 ### Fixed

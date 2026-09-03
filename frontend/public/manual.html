@@ -43,6 +43,20 @@
   .flow-dot.done { background: #22c55e; }
   .flow-label { font-size: 13.5px; color: #d4d4d8; flex: 1; min-width: 0; }
   .flow-branch { padding-left: 24px; border-left: 1px dashed rgba(255,255,255,.15); margin-left: 4px; }
+
+  .extras {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
+    margin: 20px 0 36px;
+  }
+  @media (max-width: 760px) { .extras { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 480px) { .extras { grid-template-columns: 1fr; } }
+  .extra {
+    border: 1px solid rgba(255,255,255,.08); background: #1a1a1a;
+    border-radius: 14px; padding: 16px; display: flex; gap: 12px; align-items: flex-start;
+  }
+  .extra svg { flex-shrink: 0; margin-top: 1px; }
+  .extra h3 { color: #fff; font-size: 13.5px; margin: 0 0 4px; }
+  .extra p { font-size: 12px; margin: 0; color: #a1a1aa; }
 </style>
 </head>
 <body>
@@ -112,6 +126,35 @@
       <li><strong>"Top stars" / "Recently updated"</strong> changes the order: by popularity or by how recently the repo was last updated.</li>
       <li>Your recent searches are saved (only in your own browser) so you can repeat them with one click.</li>
     </ul>
+
+    <h2>Extra tools</h2>
+    <p>All saved only in your own browser — no account needed, nothing sent to us.</p>
+    <div class="extras">
+      <div class="extra">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+        <div><h3>Favorites</h3><p>Click the bookmark on any card to save it, and browse them from the "Favorites" button in the header.</p></div>
+      </div>
+      <div class="extra">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="18" rx="1"/></svg>
+        <div><h3>Compare</h3><p>Check "Compare" on up to 3 cards to see stars, forks, issues, language, license, and stack side-by-side.</p></div>
+      </div>
+      <div class="extra">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2"><path d="M4 4h16l-6 8v6l-4 2v-8z"/></svg>
+        <div><h3>Filters</h3><p>Narrow the current results by language, license, or "has an installer detected".</p></div>
+      </div>
+      <div class="extra">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5"/></svg>
+        <div><h3>Light / dark theme</h3><p>Toggle it from the header — your choice is remembered on this device.</p></div>
+      </div>
+      <div class="extra">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2"><path d="M12 3v12"/><path d="M8 11l4 4 4-4"/><rect x="4" y="17" width="16" height="4" rx="1"/></svg>
+        <div><h3>Install history</h3><p>Every installer you download gets logged — see it from the "History" button in the header.</p></div>
+      </div>
+      <div class="extra">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg>
+        <div><h3>Install as an app</h3><p>OpenStore is a PWA — look for an install icon in your browser (or "Add to Home Screen" on mobile). Search still needs a connection; only the shell works offline.</p></div>
+      </div>
+    </div>
   </div>
 
   <div data-lang-block="es">
@@ -171,6 +214,35 @@
       <li><strong>"Más estrellas" / "Actualizados"</strong> cambia el orden: por popularidad o por qué tan reciente fue la última actualización.</li>
       <li>Tus búsquedas recientes quedan guardadas (solo en tu navegador) para repetirlas con un clic.</li>
     </ul>
+
+    <h2>Herramientas extra</h2>
+    <p>Todo se guarda solo en tu propio navegador — no necesitas cuenta, nada nos llega a nosotros.</p>
+    <div class="extras">
+      <div class="extra">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+        <div><h3>Favoritos</h3><p>Haz clic en el marcador de cualquier tarjeta para guardarla, y navégalas desde el botón "Favoritos" del encabezado.</p></div>
+      </div>
+      <div class="extra">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="18" rx="1"/></svg>
+        <div><h3>Comparar</h3><p>Marca "Comparar" en hasta 3 tarjetas para ver estrellas, forks, issues, lenguaje, licencia y stack lado a lado.</p></div>
+      </div>
+      <div class="extra">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2"><path d="M4 4h16l-6 8v6l-4 2v-8z"/></svg>
+        <div><h3>Filtros</h3><p>Acota los resultados actuales por lenguaje, licencia, o "tiene instalador detectado".</p></div>
+      </div>
+      <div class="extra">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5"/></svg>
+        <div><h3>Tema claro / oscuro</h3><p>Cámbialo desde el encabezado — tu elección se recuerda en este dispositivo.</p></div>
+      </div>
+      <div class="extra">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2"><path d="M12 3v12"/><path d="M8 11l4 4 4-4"/><rect x="4" y="17" width="16" height="4" rx="1"/></svg>
+        <div><h3>Historial de instalación</h3><p>Cada instalador que descargas queda registrado — míralo desde el botón "Historial" del encabezado.</p></div>
+      </div>
+      <div class="extra">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg>
+        <div><h3>Instalar como app</h3><p>OpenStore es una PWA — busca el ícono de instalar en tu navegador (o "Agregar a pantalla de inicio" en móvil). Buscar sigue necesitando conexión; solo el cascarón funciona sin ella.</p></div>
+      </div>
+    </div>
   </div>
 </main>
 

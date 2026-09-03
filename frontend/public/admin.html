@@ -87,10 +87,33 @@
 <script>
 (function () {
   var DEFAULT_API = "https://app-repositorio-github.onrender.com";
-  var qsApi = new URLSearchParams(location.search).get("api");
-  var API_BASE = (qsApi || localStorage.getItem("openstore-admin-api") || DEFAULT_API).replace(/\/$/, "");
-  if (qsApi) {
+  // Lista blanca del backend al que esta página puede enviar el token de
+  // administración. SIN esto, un enlace malicioso con ?api=https://atacante.com
+  // (compartido desde el dominio real de Vercel, con candado válido y todo)
+  // haría que la propia víctima le enviara su ADMIN_TOKEN al atacante en
+  // cuanto lo escribiera — la página obedecería ciegamente la URL. Solo se
+  // acepta el backend de producción o localhost (para desarrollo local).
+  function apiPermitida(url) {
+    return url === DEFAULT_API || /^https?:\/\/localhost(:\d+)?$/i.test(url);
+  }
+  var qsApiRaw = new URLSearchParams(location.search).get("api");
+  var qsApi = qsApiRaw ? qsApiRaw.replace(/\/$/, "") : null;
+  var guardado = null;
+  try { guardado = localStorage.getItem("openstore-admin-api"); } catch (e) {}
+
+  var API_BASE = DEFAULT_API;
+  if (qsApi && apiPermitida(qsApi)) {
+    API_BASE = qsApi;
     try { localStorage.setItem("openstore-admin-api", qsApi); } catch (e) {}
+  } else if (guardado && apiPermitida(guardado)) {
+    API_BASE = guardado;
+  } else if (guardado) {
+    // Un valor previamente guardado que ya no pasa la lista blanca (o un
+    // ?api= no permitido en esta visita): se descarta, nunca se usa a ciegas.
+    try { localStorage.removeItem("openstore-admin-api"); } catch (e) {}
+  }
+  if (qsApi && !apiPermitida(qsApi)) {
+    console.warn("[admin] Se ignoró ?api=" + qsApi + " — no está en la lista blanca. Usando " + API_BASE + ".");
   }
 
   function lang() {
