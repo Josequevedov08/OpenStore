@@ -77,7 +77,11 @@ DEFAULT_MODELS = {
     "openai": "gpt-4o-mini",
     "anthropic": "claude-3-5-sonnet-latest",
     "groq": "llama3-8b-8192",
-    "gemini": "gemini-3.6-flash",
+    # "-lite" es más limitado en capacidad, pero su cuota gratuita diaria es
+    # muchísimo más generosa (probamos 12 llamadas en paralelo sin fallos).
+    # gemini-3.6-flash "normal" solo permite 20 peticiones/día en la capa
+    # gratuita: se agota con una sola búsqueda de 12 repos.
+    "gemini": "gemini-flash-lite-latest",
 }
 AI_MODEL = os.getenv("AI_MODEL") or DEFAULT_MODELS.get(AI_PROVIDER, "gpt-4o-mini")
 
@@ -170,7 +174,7 @@ def extraer_repo_data(repo: dict) -> dict:
         "stargazers_count": repo.get("stargazers_count", 0),
         "forks_count": repo.get("forks_count", 0),
         "open_issues_count": repo.get("open_issues_count", 0),
-        "language": repo.get("language") or "Desconocido",
+        "language": repo.get("language") or "",
         "license": licencia,
         "default_branch": repo.get("default_branch", "main"),
         "updated_at": repo.get("updated_at", ""),
@@ -382,12 +386,13 @@ def get_system_prompt(idioma: str) -> str:
     )
 
 
-# Ritmo de envío al LLM para no exceder la capa gratuita del proveedor.
-# Gemini free tier (AI Studio): 15 RPM -> ~4s entre llamadas es suficiente.
-# Groq free tier es mucho más generoso -> casi sin espera.
-DEFAULT_RATE_LIMIT = {"gemini": 4.5, "groq": 0.5, "openai": 0.5, "anthropic": 0.5}
-AI_RATE_LIMIT_SECONDS = float(
-    os.getenv("AI_RATE_LIMIT_SECONDS", DEFAULT_RATE_LIMIT.get(AI_PROVIDER, 2.0))
+# Cuántas llamadas al LLM se disparan EN PARALELO por búsqueda (no en serie).
+# Para ~12 repos por búsqueda esto sigue muy por debajo del límite por minuto
+# del free tier de cualquier proveedor (p.ej. 15 RPM de Gemini), y evita el
+# tiempo de espera de 60-90s+ que causaba timeouts en producción.
+DEFAULT_CONCURRENCY = {"gemini": 10, "groq": 10, "openai": 8, "anthropic": 8}
+AI_CONCURRENCY = int(
+    os.getenv("AI_CONCURRENCY", DEFAULT_CONCURRENCY.get(AI_PROVIDER, 4))
 )
 # Tiempo máximo de espera por una respuesta del LLM antes de rendirse y caer
 # al fallback. Sin esto, una llamada colgada bloquearía toda la búsqueda.
@@ -448,7 +453,7 @@ async def procesar_readme_con_ia(
     user_prompt = (
         f"REPOSITORIO: {repo_data.get('full_name')}\n"
         f"DESCRIPCIÓN ORIGINAL: {repo_data.get('description')}\n"
-        f"LENGUAJE PRINCIPAL: {repo_data.get('language')}\n\n"
+        f"LENGUAJE PRINCIPAL: {repo_data.get('language') or 'not detected'}\n\n"
         f"{instruccion}\n\n"
         f"README:\n{readme_trunc}"
     )
@@ -549,6 +554,11 @@ def construir_ficha(
 ) -> dict:
     """Une los datos crudos de GitHub con la ficha del LLM (o fallback)."""
     idioma = "es" if idioma == "es" else "en"
+    # "language" viene vacío de GitHub cuando no pudo detectarlo — el texto
+    # de reemplazo debe respetar el idioma pedido, no estar fijo en español.
+    idioma_desconocido = "Desconocido" if idioma == "es" else "Unknown"
+    lenguaje = repo_data.get("language") or ""
+
     if not ia_data:
         # Fallback sin IA: derivamos algo usable del repo real, sin exponer
         # texto crudo en un idioma/escritura que el usuario no pueda leer.
@@ -557,13 +567,13 @@ def construir_ficha(
             no_latin_desc = "Descripción original no disponible en este idioma por ahora."
             tag = "🤖 Análisis pendiente. "
             caracteristicas = ["Integración lista para usar", "Código abierto", "Comunidad activa"]
-            requisitos = ["Cuenta de GitHub", f"Entorno {repo_data['language']}"]
+            requisitos = ["Cuenta de GitHub", f"Entorno {lenguaje or idioma_desconocido}"]
         else:
             default_desc = "Open-source solution ready for your business."
             no_latin_desc = "Original description not available in this language yet."
             tag = "🤖 Analysis pending. "
             caracteristicas = ["Ready-to-use integration", "Open source", "Active community"]
-            requisitos = ["GitHub account", f"{repo_data['language']} environment"]
+            requisitos = ["GitHub account", f"{lenguaje or idioma_desconocido} environment"]
 
         raw_desc = repo_data["description"] or default_desc
         if _contiene_script_no_latino(raw_desc):
@@ -573,7 +583,7 @@ def construir_ficha(
         ia_data = {
             "titulo_comercial": repo_data["name"].replace("-", " ").title(),
             "propuesta_valor": tag + truncated,
-            "tecnologias": [repo_data["language"]] if repo_data["language"] != "Desconocido" else [],
+            "tecnologias": [lenguaje] if lenguaje else [],
             "caracteristicas": caracteristicas,
             "requisitos_externos": requisitos,
             "imagen_url": "",
@@ -598,7 +608,7 @@ def construir_ficha(
         # open_issues_count incluye PRs en GitHub; lo aproximamos.
         "pull_requests": max(0, repo_data.get("open_issues_count", 0) // 4),
         "issues_abiertos": repo_data.get("open_issues_count", 0),
-        "lenguaje_principal": repo_data.get("language") or "Desconocido",
+        "lenguaje_principal": lenguaje or idioma_desconocido,
         "imagen_url": imagen,
         "repo_url": repo_data.get("html_url") or "",
         # Campos para el Instalador Inteligente. Se sanitizan AQUÍ (una sola
@@ -643,7 +653,7 @@ def _repo_data_desde_url(url: str) -> dict:
         "stargazers_count": 0,
         "forks_count": 0,
         "open_issues_count": 0,
-        "language": "Desconocido",
+        "language": "",
         "license": "MIT",
         "default_branch": "main",
         "updated_at": "",
@@ -750,22 +760,25 @@ async def buscar_soluciones(payload: BusquedaRequest):
         # Descarta los que fallaron (None) silenciosamente
         extraidos = [e for e in extraidos if e]
 
-        # Fase 3 + 4: procesar README con IA y empaquetar, DE FORMA SECUENCIAL
-        # para respetar el límite de peticiones/minuto de la capa gratuita del
-        # proveedor configurado (ver AI_RATE_LIMIT_SECONDS).
-        async def procesar(e):
-            ia = await procesar_readme_con_ia(e["readme"], e["repo_data"], idioma)
-            return construir_ficha(e["repo_data"], ia, e["readme"], idioma)
+        # Fase 3 + 4: procesar README con IA y empaquetar, EN PARALELO con un
+        # límite de concurrencia (AI_CONCURRENCY). Antes esto era totalmente
+        # secuencial con una espera fija entre cada llamada (pensado para no
+        # exceder el límite de RPM del free tier), pero para ~12 repos eso
+        # significaba 60-90+ segundos por búsqueda — tiempo suficiente para
+        # que el proxy de Render (o el propio navegador) cortara la conexión
+        # y el frontend mostrara "no se pudo contactar al servidor" aunque el
+        # backend siguiera trabajando. Disparar unas pocas llamadas a la vez
+        # sigue estando muy por debajo del límite por minuto del proveedor
+        # (p.ej. 15 RPM de Gemini) para una sola búsqueda, y baja el tiempo
+        # total a unos pocos segundos.
+        sem = asyncio.Semaphore(AI_CONCURRENCY)
 
-        fichas = []
-        total = len(extraidos)
-        for i, e in enumerate(extraidos, start=1):
-            fichas.append(await procesar(e))
-            if i < total:
-                print(
-                    f"[RATE LIMIT] Esperando {AI_RATE_LIMIT_SECONDS}s... (Ficha {i}/{total})"
-                )
-                await asyncio.sleep(AI_RATE_LIMIT_SECONDS)
+        async def procesar(e):
+            async with sem:
+                ia = await procesar_readme_con_ia(e["readme"], e["repo_data"], idioma)
+                return construir_ficha(e["repo_data"], ia, e["readme"], idioma)
+
+        fichas = await asyncio.gather(*(procesar(e) for e in extraidos))
         # Filtra cualquier None accidental
         fichas = [f for f in fichas if f]
 

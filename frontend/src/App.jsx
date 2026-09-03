@@ -33,11 +33,14 @@ const STRINGS = {
     grid: 'Grid',
     list: 'List',
     loading: 'Searching all of GitHub…',
+    loadingSlow: 'Still working — the AI is reading each README, this can take up to a minute.',
     viewDetails: 'Get',
     pending: 'Analysis pending',
     error: "Couldn't reach the server. Please try again in a moment.",
+    timeoutError: 'This search is taking too long and was cancelled. Please try again.',
     noResults: 'No results found. Try a different search.',
     footerManual: 'How it works',
+    footerFaq: 'FAQ',
     footerTerms: 'Terms & Conditions',
     footerPrivacy: 'Privacy Policy',
   },
@@ -54,11 +57,14 @@ const STRINGS = {
     grid: 'Grid',
     list: 'Lista',
     loading: 'Buscando en todo GitHub…',
+    loadingSlow: 'Seguimos trabajando — la IA está leyendo cada README, puede tardar hasta un minuto.',
     viewDetails: 'Instalar',
     pending: 'Análisis pendiente',
     error: 'No se pudo contactar al servidor. Intenta de nuevo en un momento.',
+    timeoutError: 'Esta búsqueda tardó demasiado y se canceló. Intenta de nuevo.',
     noResults: 'Sin resultados. Prueba con otra búsqueda.',
     footerManual: 'Cómo funciona',
+    footerFaq: 'Preguntas Frecuentes',
     footerTerms: 'Términos y Condiciones',
     footerPrivacy: 'Política de Privacidad',
   },
@@ -211,6 +217,7 @@ export default function App() {
 
   const [query, setQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  const [isSlow, setIsSlow] = useState(false);
   const [resultados, setResultados] = useState([]);
   const [error, setError] = useState('');
   const [viewMode, setViewMode] = useState('grid');
@@ -248,13 +255,21 @@ export default function App() {
     setQuery(q);
     if (!q.trim()) return;
     setIsSearching(true);
+    setIsSlow(false);
     setError('');
     setResultados([]);
+    // Timeout defensivo: si el backend se cuelga por lo que sea, el usuario
+    // ve un error accionable en vez de un spinner infinito. Una búsqueda
+    // normal tarda unos 15-30s; 90s ya es una señal clara de que algo falló.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 90_000);
+    const slowId = setTimeout(() => setIsSlow(true), 8_000);
     try {
       const res = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: q, idioma }),
+        signal: controller.signal,
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
@@ -263,9 +278,12 @@ export default function App() {
       setCurrentPage(1);
     } catch (err) {
       setResultados([]);
-      setError(t.error);
+      setError(err?.name === 'AbortError' ? t.timeoutError : t.error);
     } finally {
+      clearTimeout(timeoutId);
+      clearTimeout(slowId);
       setIsSearching(false);
+      setIsSlow(false);
     }
   };
 
@@ -318,9 +336,10 @@ export default function App() {
           </div>
 
           {isSearching ? (
-            <div className="flex w-full flex-col items-center gap-4 py-24 text-zinc-400">
-              <span className="h-8 w-8 animate-spin rounded-full border-2 border-white/10 border-t-blue-400" />
-              {t.loading}
+            <div className="flex w-full flex-col items-center gap-2 py-24 text-center text-zinc-400">
+              <span className="mb-2 h-8 w-8 animate-spin rounded-full border-2 border-white/10 border-t-blue-400" />
+              <span>{t.loading}</span>
+              {isSlow && <span className="max-w-sm text-xs text-zinc-500">{t.loadingSlow}</span>}
             </div>
           ) : error ? (
             <div className="mx-auto flex max-w-xl flex-col items-center gap-3 rounded-2xl border border-red-500/20 bg-red-500/5 px-6 py-10 text-center text-zinc-300">
@@ -364,6 +383,7 @@ export default function App() {
         <footer className="mt-10 flex w-full flex-col items-center gap-2 border-t border-white/10 py-8 text-xs text-zinc-500">
           <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
             <a href="/manual.html" className="hover:text-zinc-300">{t.footerManual}</a>
+            <a href="/faq.html" className="hover:text-zinc-300">{t.footerFaq}</a>
             <a href="/terminos.html" className="hover:text-zinc-300">{t.footerTerms}</a>
             <a href="/privacidad.html" className="hover:text-zinc-300">{t.footerPrivacy}</a>
           </div>

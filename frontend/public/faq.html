@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OpenStore — FAQ</title>
+<link rel="icon" href="/favicon.svg" />
+<link rel="stylesheet" href="/legal-shared.css" />
+<style>
+  .faq-item {
+    border: 1px solid rgba(255,255,255,.08); background: #1a1a1a;
+    border-radius: 14px; margin-bottom: 10px; overflow: hidden;
+  }
+  .faq-item summary {
+    cursor: pointer; list-style: none; padding: 16px 18px;
+    color: #fff; font-weight: 600; font-size: 14.5px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  }
+  .faq-item summary::-webkit-details-marker { display: none; }
+  .faq-item summary:after { content: "+"; color: #71717a; font-size: 20px; flex-shrink: 0; }
+  .faq-item[open] summary:after { content: "–"; }
+  .faq-item .a { padding: 0 18px 16px; font-size: 14px; color: #a1a1aa; }
+  .faq-item .a code { background: #0f0f0f; padding: 1px 5px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a class="brand" href="/">OpenStore</a>
+  <div class="langswitch">
+    <button data-lang="en">EN</button>
+    <button data-lang="es">ES</button>
+  </div>
+</div>
+
+<main>
+  <div data-lang-block="en">
+    <h1>Frequently Asked Questions</h1>
+    <p class="updated">Straight answers, no fine print buried elsewhere.</p>
+
+    <details class="faq-item" open>
+      <summary>Why does a search take 15–30 seconds?</summary>
+      <div class="a">Each search finds up to 12 repositories, downloads each one's README, and sends it to an AI model to summarize — that's up to 12 real AI calls, run in parallel. It's not instant, but it should never take more than about a minute; if it does, something's wrong (see below).</div>
+    </details>
+
+    <details class="faq-item">
+      <summary>I get "Couldn't reach the server" — what's happening?</summary>
+      <div class="a">This means the request failed or timed out. It usually resolves itself — try again in a moment. If it keeps happening, the AI provider's free-tier quota may be temporarily exhausted (shared across everyone using this instance) or the backend may be waking up from being idle (free hosting spins down after inactivity, the first request after that can take 30–50s just to wake up).</div>
+    </details>
+
+    <details class="faq-item">
+      <summary>What does the "🤖 Analysis pending" badge mean?</summary>
+      <div class="a">The AI couldn't process that specific repository (quota, timeout, or a malformed response) — you're seeing GitHub's raw data (stars, language, description) instead of an AI-written pitch. It's an honest fallback, not a bug. Try searching again later.</div>
+    </details>
+
+    <details class="faq-item">
+      <summary>Is OpenStore free to use?</summary>
+      <div class="a">Yes, for you as a visitor. Behind the scenes it runs on free tiers of GitHub's API and Google's Gemini API, which have shared usage limits — heavy use by many people at once can occasionally hit those limits.</div>
+    </details>
+
+    <details class="faq-item">
+      <summary>Can I search private repositories?</summary>
+      <div class="a">No. OpenStore only searches and reads what GitHub's public API exposes — public repositories only.</div>
+    </details>
+
+    <details class="faq-item">
+      <summary>What languages are supported?</summary>
+      <div class="a">The interface and the AI-generated pitches support English (default) and Spanish. The AI auto-translates from whatever language the original README is written in — Chinese, Russian, French, anything — into whichever of the two you pick.</div>
+    </details>
+
+    <details class="faq-item">
+      <summary>Is the "Install" button safe?</summary>
+      <div class="a">It downloads a script <em>you</em> choose to run, which then clones and runs the real, actual code of a third-party repository. We sanitize the script itself against destructive patterns, but we can't audit the repository's own source code. See the <a href="/manual.html">visual manual</a> and our <a href="/terminos.html">Terms</a> for the full picture — short version: only use it for repos from authors you trust.</div>
+    </details>
+
+    <details class="faq-item">
+      <summary>Does OpenStore store my searches?</summary>
+      <div class="a">No accounts, no tracking, no database of your queries. See the <a href="/privacidad.html">Privacy Policy</a> for the full breakdown of what's sent to GitHub's and Google's APIs to make a search work.</div>
+    </details>
+
+    <details class="faq-item">
+      <summary>Something's broken or wrong — who do I tell?</summary>
+      <div class="a">Reach the project owner via <a href="https://github.com/Josequevedov08" target="_blank" rel="noopener">GitHub</a>.</div>
+    </details>
+  </div>
+
+  <div data-lang-block="es">
+    <h1>Preguntas Frecuentes</h1>
+    <p class="updated">Respuestas directas, sin letra pequeña escondida en otro lado.</p>
+
+    <details class="faq-item" open>
+      <summary>¿Por qué una búsqueda tarda 15-30 segundos?</summary>
+      <div class="a">Cada búsqueda encuentra hasta 12 repositorios, descarga el README de cada uno, y lo envía a un modelo de IA para resumirlo — son hasta 12 llamadas reales a la IA, corriendo en paralelo. No es instantáneo, pero nunca debería tardar más de un minuto aproximadamente; si tarda más, algo falló (ver abajo).</div>
+    </details>
+
+    <details class="faq-item">
+      <summary>Me sale "No se pudo contactar al servidor" — ¿qué pasa?</summary>
+      <div class="a">Significa que la petición falló o excedió el tiempo de espera. Normalmente se resuelve solo — intenta de nuevo en un momento. Si sigue pasando, puede ser que la cuota gratuita del proveedor de IA esté agotada temporalmente (la comparten todos los que usan esta instancia) o que el backend esté "despertando" tras estar inactivo (el hosting gratuito se apaga tras inactividad; la primera petición después de eso puede tardar 30-50s solo en despertar).</div>
+    </details>
+
+    <details class="faq-item">
+      <summary>¿Qué significa el badge "🤖 Análisis pendiente"?</summary>
+      <div class="a">La IA no pudo procesar ese repositorio específico (cuota, timeout, o una respuesta mal formada) — estás viendo los datos crudos de GitHub (estrellas, lenguaje, descripción) en vez de una ficha escrita por IA. Es un respaldo honesto, no un error. Intenta buscar de nuevo más tarde.</div>
+    </details>
+
+    <details class="faq-item">
+      <summary>¿OpenStore es gratis?</summary>
+      <div class="a">Sí, para ti como visitante. Por dentro corre sobre las capas gratuitas de la API de GitHub y la API de Gemini de Google, que tienen límites de uso compartidos — mucho uso simultáneo puede ocasionalmente topar con esos límites.</div>
+    </details>
+
+    <details class="faq-item">
+      <summary>¿Puedo buscar repositorios privados?</summary>
+      <div class="a">No. OpenStore solo busca y lee lo que la API pública de GitHub expone — solo repositorios públicos.</div>
+    </details>
+
+    <details class="faq-item">
+      <summary>¿Qué idiomas soporta?</summary>
+      <div class="a">La interfaz y las fichas generadas por IA soportan inglés (por defecto) y español. La IA traduce automáticamente desde el idioma original del README — chino, ruso, francés, cualquiera — al que elijas.</div>
+    </details>
+
+    <details class="faq-item">
+      <summary>¿Es seguro el botón "Instalar"?</summary>
+      <div class="a">Descarga un script que <em>tú</em> decides ejecutar, que clona y corre el código real de un repositorio de terceros. Nosotros sanitizamos el script en sí contra patrones destructivos, pero no podemos auditar el código fuente propio del repositorio. Mira el <a href="/manual.html">manual visual</a> y nuestros <a href="/terminos.html">Términos</a> para el panorama completo — resumen: úsalo solo con repos de autores en los que confíes.</div>
+    </details>
+
+    <details class="faq-item">
+      <summary>¿OpenStore guarda mis búsquedas?</summary>
+      <div class="a">No hay cuentas, no hay rastreo, no hay base de datos de tus búsquedas. Mira la <a href="/privacidad.html">Política de Privacidad</a> para el detalle completo de qué se envía a las APIs de GitHub y Google para que una búsqueda funcione.</div>
+    </details>
+
+    <details class="faq-item">
+      <summary>Algo está roto o mal — ¿a quién le digo?</summary>
+      <div class="a">Contacta al dueño del proyecto vía <a href="https://github.com/Josequevedov08" target="_blank" rel="noopener">GitHub</a>.</div>
+    </details>
+  </div>
+</main>
+
+<script src="/legal-shared.js"></script>
+</body>
+</html>
