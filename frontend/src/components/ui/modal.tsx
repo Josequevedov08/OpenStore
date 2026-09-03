@@ -4,6 +4,23 @@ import { useState, useEffect } from "react";
 import { X, Star, Check, GitBranch, AlertCircle, GitPullRequest, Code2, Clock, Download, Loader2 } from "lucide-react";
 import { GithubIcon } from "./modal-shared";
 
+// Imagen de respaldo (SVG embebido, sin red) para cuando la miniatura de
+// Unsplash no carga — misma idea que en las tarjetas de App.jsx.
+const FALLBACK_IMG =
+  "data:image/svg+xml;utf8," +
+  encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="200" viewBox="0 0 800 200">
+      <defs>
+        <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#1f2937"/>
+          <stop offset="100%" stop-color="#111827"/>
+        </linearGradient>
+      </defs>
+      <rect width="800" height="200" fill="url(#g)"/>
+      <path d="M350 80 l-20 20 20 20 M450 80 l20 20 -20 20 M390 65 l20 70" stroke="#3b82f6" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"/>
+    </svg>`
+  );
+
 interface ModalProps {
   proyecto: {
     categoria?: string;
@@ -163,7 +180,11 @@ export default function Modal({ proyecto, onClose, idioma = "en", installerUrl }
         {/* Banner de imagen */}
         <div className="relative h-48 w-full shrink-0">
           <img
-            src={proyecto.imagen_url}
+            src={proyecto.imagen_url || FALLBACK_IMG}
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = FALLBACK_IMG;
+            }}
             alt={proyecto.titulo_comercial}
             className="h-48 w-full rounded-t-2xl object-cover"
           />

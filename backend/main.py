@@ -316,6 +316,15 @@ async def buscar_repositorios(
     if perfil:
         q = f"user:{perfil.group(1)}"
 
+    # Ordenar por "más reciente" solo (sin piso de estrellas) saca a la luz
+    # repos personales de 0-1 estrellas que apenas coinciden con el texto —
+    # no lo que alguien espera al pedir "recientes" en una app de descubrir
+    # software de calidad. Si el usuario no puso ya su propio filtro
+    # "stars:", le agregamos uno razonable para que "recientes" siga
+    # significando "recientes y con tracción real".
+    if orden == "updated" and "stars:" not in q.lower():
+        q = f"{q} stars:>50"
+
     # --- Ruta B: búsqueda normal en todo GitHub (soporta calificadores como
     # "user:usuario", "language:python", "stars:>100", etc.) ---
     params = {

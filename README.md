@@ -223,3 +223,8 @@ Ver el [manual visual](https://app-repositorio-github-one.vercel.app/manual.html
 - Renombrar una variable de entorno puede dejar un valor viejo con el tipo equivocado en el panel de tu hosting — parsea la configuración a la defensiva (avisa y usa un valor por defecto) en vez de confiar en que `int()`/`float()` nunca van a fallar.
 
 </details>
+
+---
+
+<sub>💛 Si este proyecto te resultó útil y quieres apoyarlo: PayPal — joseramonquevedovillalobos@gmail.com</sub>
+
