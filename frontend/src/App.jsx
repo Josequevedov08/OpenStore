@@ -38,7 +38,7 @@ const STRINGS = {
     list: 'List',
     loading: 'Searching all of GitHub…',
     loadingSlow: "Still working — the free server may be waking up from idle, or the AI is reading each README. This can take up to a minute.",
-    retrying: 'Connection dropped — retrying automatically ({attempt}/2)…',
+    retrying: 'Connection dropped — retrying automatically ({attempt}/3)…',
     viewDetails: 'Get',
     pending: 'Analysis pending',
     error: "Couldn't reach the server. Please try again in a moment.",
@@ -63,7 +63,7 @@ const STRINGS = {
     list: 'Lista',
     loading: 'Buscando en todo GitHub…',
     loadingSlow: 'Seguimos trabajando — puede que el servidor gratuito esté "despertando", o la IA está leyendo cada README. Puede tardar hasta un minuto.',
-    retrying: 'La conexión se cortó — reintentando automáticamente ({attempt}/2)…',
+    retrying: 'La conexión se cortó — reintentando automáticamente ({attempt}/3)…',
     viewDetails: 'Instalar',
     pending: 'Análisis pendiente',
     error: 'No se pudo contactar al servidor. Intenta de nuevo en un momento.',
@@ -281,7 +281,7 @@ export default function App() {
     // servidor tenga ningún problema — un segundo o tercer intento suele
     // funcionar. Solo reintentamos fallos de red, nunca un timeout real
     // (AbortError) ni una respuesta HTTP del servidor (esa sí es final).
-    const MAX_INTENTOS = 3;
+    const MAX_INTENTOS = 4;
     let ultimoError;
     let res;
     for (let intento = 1; intento <= MAX_INTENTOS; intento++) {
@@ -309,7 +309,7 @@ export default function App() {
         // seguimos reintentando, ya perdimos demasiado tiempo.
         if (err?.name === 'AbortError' || intento === MAX_INTENTOS) break;
         setRetryAttempt(intento);
-        await new Promise((r) => setTimeout(r, 1500 * intento));
+        await new Promise((r) => setTimeout(r, 2000 * intento));
         continue;
       } finally {
         clearTimeout(timeoutId);
@@ -326,7 +326,10 @@ export default function App() {
       setCurrentPage(1);
     } catch (err) {
       setResultados([]);
-      setError(err?.name === 'AbortError' ? t.timeoutError : t.error);
+      // eslint-disable-next-line no-console
+      console.error('[OpenStore] Búsqueda falló:', err);
+      const detalle = err ? `${err.name || 'Error'}: ${err.message || String(err)}` : '';
+      setError(`${err?.name === 'AbortError' ? t.timeoutError : t.error}${detalle ? ` (${detalle})` : ''}`);
     } finally {
       setIsSearching(false);
       setIsSlow(false);
