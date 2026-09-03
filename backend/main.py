@@ -19,9 +19,16 @@ from typing import Any, Optional
 
 import httpx
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+
+from instalador import (
+    GESTORES_VALIDOS,
+    generar_bat,
+    normalizar_gestor,
+    sanitizar_comando_arranque,
+)
 
 # Integración con Google Sheets (guardado automático de fichas).
 try:
@@ -305,7 +312,14 @@ def get_system_prompt(idioma: str) -> str:
             "'Tener Node.js instalado en el servidor', 'Cuenta de GitHub con permisos de lectura'.\n"
             "4) 'tecnologias' (array de strings): lenguajes/frameworks detectados.\n"
             "5) 'caracteristicas' (array de strings): exactamente 3 funciones clave en español.\n"
-            "6) 'imagen_url': una URL de imagen de Unsplash relacionada con tecnología/software.\n\n"
+            "6) 'imagen_url': una URL de imagen de Unsplash relacionada con tecnología/software.\n"
+            "7) 'gestor_paquetes': lee la sección de instalación/setup del README e identifica QUÉ "
+            "gestor de paquetes usa este proyecto. Responde EXACTAMENTE una de estas palabras: "
+            "npm, yarn, pnpm, pip, poetry, cargo, go, bundler, composer, dotnet, docker, none "
+            "(usa 'none' si no es claro). NO inventes otro valor.\n"
+            "8) 'comando_arranque': el comando exacto para INICIAR la app tal como aparece en el "
+            "README (ej: 'npm run dev', 'python main.py', 'docker compose up'). Cadena corta y "
+            "literal, sin explicaciones. Si no lo encuentras, deja \"\".\n\n"
             "ESTRUCTURA JSON EXACTA:\n"
             "{\n"
             '  "titulo_comercial": string (nombre atractivo en español),\n'
@@ -313,7 +327,9 @@ def get_system_prompt(idioma: str) -> str:
             '  "tecnologias": [string, ...],\n'
             '  "caracteristicas": [string, string, string],\n'
             '  "requisitos_externos": [string, ...],\n'
-            '  "imagen_url": string\n'
+            '  "imagen_url": string,\n'
+            '  "gestor_paquetes": string,\n'
+            '  "comando_arranque": string\n'
             "}"
         )
 
@@ -343,7 +359,14 @@ def get_system_prompt(idioma: str) -> str:
         "'Node.js installed on the server', 'A GitHub account with read permissions'.\n"
         "4) 'tecnologias' (array of strings): detected languages/frameworks.\n"
         "5) 'caracteristicas' (array of strings): exactly 3 key features in English.\n"
-        "6) 'imagen_url': an Unsplash image URL related to technology/software.\n\n"
+        "6) 'imagen_url': an Unsplash image URL related to technology/software.\n"
+        "7) 'gestor_paquetes': read the install/setup section of the README and identify WHICH "
+        "package manager this project uses. Reply with EXACTLY one of these words: "
+        "npm, yarn, pnpm, pip, poetry, cargo, go, bundler, composer, dotnet, docker, none "
+        "(use 'none' if unclear). Do NOT invent another value.\n"
+        "8) 'comando_arranque': the exact command to START the app as it appears in the README "
+        "(e.g. 'npm run dev', 'python main.py', 'docker compose up'). Short, literal string, no "
+        "explanations. If you can't find it, leave it as \"\".\n\n"
         "EXACT JSON STRUCTURE:\n"
         "{\n"
         '  "titulo_comercial": string (catchy product name, in English),\n'
@@ -351,7 +374,9 @@ def get_system_prompt(idioma: str) -> str:
         '  "tecnologias": [string, ...],\n'
         '  "caracteristicas": [string, string, string],\n'
         '  "requisitos_externos": [string, ...],\n'
-        '  "imagen_url": string\n'
+        '  "imagen_url": string,\n'
+        '  "gestor_paquetes": string,\n'
+        '  "comando_arranque": string\n'
         "}"
     )
 
@@ -363,6 +388,9 @@ DEFAULT_RATE_LIMIT = {"gemini": 4.5, "groq": 0.5, "openai": 0.5, "anthropic": 0.
 AI_RATE_LIMIT_SECONDS = float(
     os.getenv("AI_RATE_LIMIT_SECONDS", DEFAULT_RATE_LIMIT.get(AI_PROVIDER, 2.0))
 )
+# Tiempo máximo de espera por una respuesta del LLM antes de rendirse y caer
+# al fallback. Sin esto, una llamada colgada bloquearía toda la búsqueda.
+AI_CALL_TIMEOUT_SECONDS = float(os.getenv("AI_CALL_TIMEOUT_SECONDS", "30"))
 
 
 def _cliente_ia():
@@ -424,7 +452,7 @@ async def procesar_readme_con_ia(
         f"README:\n{readme_trunc}"
     )
 
-    try:
+    async def _llamar_llm() -> str:
         # --- Flujo oficial Gemini (SDK google-genai) ---
         if AI_PROVIDER == "gemini":
             if google_genai is None or GEMINI_CLIENT is None:
@@ -439,28 +467,33 @@ async def procesar_readme_con_ia(
                     response_mime_type="application/json",
                 ),
             )
-            content = response.text
-        else:
-            client = _cliente_ia()
-            if AI_PROVIDER == "anthropic":
-                msg = await client.messages.create(
-                    model=AI_MODEL,
-                    max_tokens=800,
-                    system=system_prompt,
-                    messages=[{"role": "user", "content": user_prompt}],
-                )
-                content = msg.content[0].text
-            else:
-                resp = await client.chat.completions.create(
-                    model=AI_MODEL,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt},
-                    ],
-                    temperature=0.3,
-                    response_format={"type": "json_object"},
-                )
-                content = resp.choices[0].message.content
+            return response.text
+
+        client = _cliente_ia()
+        if AI_PROVIDER == "anthropic":
+            msg = await client.messages.create(
+                model=AI_MODEL,
+                max_tokens=800,
+                system=system_prompt,
+                messages=[{"role": "user", "content": user_prompt}],
+            )
+            return msg.content[0].text
+
+        resp = await client.chat.completions.create(
+            model=AI_MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=0.3,
+            response_format={"type": "json_object"},
+        )
+        return resp.choices[0].message.content
+
+    try:
+        # El SDK del proveedor no siempre trae su propio timeout de red; sin
+        # esto, una llamada colgada bloquearía toda la búsqueda indefinidamente.
+        content = await asyncio.wait_for(_llamar_llm(), timeout=AI_CALL_TIMEOUT_SECONDS)
 
         # Limpieza exhaustiva del JSON: elimina fences markdown ```json ... ```, backticks sueltos,
         # espacios, y cualquier texto antes/después del objeto JSON.
@@ -484,6 +517,12 @@ async def procesar_readme_con_ia(
                 content = content[start : end + 1]
         data = json.loads(content)
         return data
+    except asyncio.TimeoutError:
+        print(
+            f"[FASE 3] LLM excedió {AI_CALL_TIMEOUT_SECONDS}s para "
+            f"{repo_data.get('full_name')}: se usa fallback."
+        )
+        return None
     except Exception as e:
         print(f"[FASE 3] LLM falló para {repo_data.get('full_name')}: {type(e).__name__}: {e}")
         return None
@@ -561,6 +600,11 @@ def construir_ficha(
         "lenguaje_principal": repo_data.get("language") or "Desconocido",
         "imagen_url": imagen,
         "repo_url": repo_data.get("html_url") or "",
+        # Campos para el Instalador Inteligente. Se sanitizan AQUÍ (una sola
+        # vez, en el server) para que el cliente nunca reciba ni reenvíe un
+        # comando de arranque que no haya pasado el validador estricto.
+        "gestor_paquetes": normalizar_gestor(ia_data.get("gestor_paquetes")),
+        "comando_arranque": sanitizar_comando_arranque(ia_data.get("comando_arranque")),
     }
 
 
@@ -637,8 +681,13 @@ async def buscar_soluciones(payload: BusquedaRequest):
         raise HTTPException(status_code=400, detail="El campo 'query' es requerido.")
     idioma = "es" if (payload.idioma or "").lower() == "es" else "en"
 
-    # ---- RUTA CRAWL4AI: el query es una URL directa ----
-    if query.lower().startswith("http://") or query.lower().startswith("https://"):
+    # ---- RUTA CRAWL4AI: el query es una URL directa que NO es de GitHub ----
+    # Una URL de GitHub (repo o perfil) se resuelve más rápido y sin depender
+    # de Crawl4AI (pesado y opcional) vía la API oficial en buscar_repositorios,
+    # así que la dejamos caer a la Ruta GitHub de más abajo.
+    es_url = query.lower().startswith("http://") or query.lower().startswith("https://")
+    es_url_github = bool(URL_RE.search(query) or PROFILE_URL_RE.match(query))
+    if es_url and not es_url_github:
         try:
             markdown = await extraer_markdown_crawl4ai(query)
         except Exception as e:
@@ -755,6 +804,47 @@ async def health():
         "default_idioma": DEFAULT_IDIOMA,
         "github_token": bool(GITHUB_TOKEN),
     }
+
+
+# ---------------------------------------------------------------------------
+# Instalador Inteligente: genera un .bat descargable por repositorio.
+# ---------------------------------------------------------------------------
+class InstaladorRequest(BaseModel):
+    repo_url: str
+    nombre: str
+    lenguaje_principal: Optional[str] = ""
+    gestor_paquetes: Optional[str] = "none"
+    comando_arranque: Optional[str] = ""
+    idioma: Optional[str] = "en"
+
+
+@app.post("/api/generar-instalador")
+async def generar_instalador(payload: InstaladorRequest):
+    # Todo se vuelve a validar aquí server-side: nunca confiamos en que el
+    # cliente reenvíe exactamente lo que nosotros mismos calculamos antes.
+    try:
+        contenido = generar_bat(
+            repo_url=payload.repo_url,
+            nombre=payload.nombre or "proyecto",
+            lenguaje_principal=payload.lenguaje_principal or "",
+            gestor_paquetes=payload.gestor_paquetes or "none",
+            comando_arranque=payload.comando_arranque or "",
+            idioma=payload.idioma or "en",
+        )
+    except ValueError:
+        raise HTTPException(status_code=400, detail="repo_url inválida.")
+
+    nombre_archivo = "".join(
+        c for c in (payload.nombre or "instalador") if c.isalnum() or c in ("-", "_")
+    ) or "instalador"
+
+    return Response(
+        content=contenido,
+        media_type="application/bat",
+        headers={
+            "Content-Disposition": f'attachment; filename="instalar-{nombre_archivo}.bat"'
+        },
+    )
 
 
 if __name__ == "__main__":

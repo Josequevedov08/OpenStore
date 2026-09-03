@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
-import { X, Star, Check, GitBranch, AlertCircle, GitPullRequest, Code2, Clock } from "lucide-react";
+import { useState, useEffect } from "react";
+import { X, Star, Check, GitBranch, AlertCircle, GitPullRequest, Code2, Clock, Download, Loader2 } from "lucide-react";
 import { GithubIcon } from "./modal-shared";
 
 interface ModalProps {
@@ -22,10 +22,13 @@ interface ModalProps {
     issues_abiertos?: number;
     pull_requests?: number;
     lenguaje_principal?: string;
+    gestor_paquetes?: string;
+    comando_arranque?: string;
     readme?: string;
   } | null;
   onClose: () => void;
   idioma?: "en" | "es";
+  installerUrl?: string;
 }
 
 // Formatea estrellas al estilo GitHub: 12400 -> "12.4k", 850 -> "850"
@@ -48,7 +51,11 @@ const MODAL_STRINGS = {
     author: "Author",
     license: "License",
     lastCommit: "Last Commit",
-    install: "Install",
+    install: "Download for Windows",
+    installing: "Generating installer…",
+    installHint:
+      "Downloads a script that clones this repo to your Desktop, installs missing tools via winget (Windows will ask for permission) and starts it. Windows/x64 only, for now.",
+    installError: "Couldn't generate the installer. Try again in a moment.",
     viewGithub: "View on GitHub",
   },
   es: {
@@ -63,13 +70,20 @@ const MODAL_STRINGS = {
     author: "Autor",
     license: "Licencia",
     lastCommit: "Último Commit",
-    install: "Instalar",
+    install: "Descargar para Windows",
+    installing: "Generando instalador…",
+    installHint:
+      "Descarga un script que clona este repo en tu Escritorio, instala las herramientas que falten con winget (Windows pedirá tu permiso) y lo arranca. Por ahora, solo Windows/x64.",
+    installError: "No se pudo generar el instalador. Intenta de nuevo en un momento.",
     viewGithub: "Ver en GitHub",
   },
 };
 
-export default function Modal({ proyecto, onClose, idioma = "en" }: ModalProps) {
+export default function Modal({ proyecto, onClose, idioma = "en", installerUrl }: ModalProps) {
   const s = MODAL_STRINGS[idioma] ?? MODAL_STRINGS.en;
+  const [descargando, setDescargando] = useState(false);
+  const [errorInstalador, setErrorInstalador] = useState("");
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -82,7 +96,46 @@ export default function Modal({ proyecto, onClose, idioma = "en" }: ModalProps) 
     };
   }, [onClose]);
 
+  useEffect(() => {
+    setErrorInstalador("");
+    setDescargando(false);
+  }, [proyecto?.repo_url]);
+
   if (!proyecto) return null;
+
+  const handleInstalar = async () => {
+    if (!installerUrl) return;
+    setDescargando(true);
+    setErrorInstalador("");
+    try {
+      const res = await fetch(installerUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          repo_url: proyecto.repo_url,
+          nombre: proyecto.titulo_comercial,
+          lenguaje_principal: proyecto.lenguaje_principal,
+          gestor_paquetes: proyecto.gestor_paquetes,
+          comando_arranque: proyecto.comando_arranque,
+          idioma,
+        }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `instalar-${(proyecto.titulo_comercial || "proyecto").replace(/[^a-zA-Z0-9-_]/g, "")}.bat`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      setErrorInstalador(s.installError);
+    } finally {
+      setDescargando(false);
+    }
+  };
 
   const metrics = [
     { icon: AlertCircle, label: s.issues, value: proyecto.issues_abiertos ?? 0 },
@@ -219,25 +272,37 @@ export default function Modal({ proyecto, onClose, idioma = "en" }: ModalProps) 
             )}
         </div>
 
-        {/* Footer: el CTA principal instala de verdad (abre el repo real) */}
-        <div className="flex flex-col gap-3 border-t border-white/10 p-6 sm:flex-row">
-          <a
-            href={proyecto.repo_url || "#"}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-base font-black text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] transition-all hover:bg-blue-500"
-          >
-            {s.install}
-          </a>
-          <a
-            href={proyecto.repo_url || "#"}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 rounded-xl border border-white/15 px-6 py-3 text-base font-semibold text-white transition-colors hover:bg-white/5"
-          >
-            <GithubIcon className="h-4 w-4" />
-            {s.viewGithub}
-          </a>
+        {/* Footer: el CTA principal descarga el Instalador Inteligente */}
+        <div className="flex flex-col gap-3 border-t border-white/10 p-6">
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <button
+              type="button"
+              onClick={handleInstalar}
+              disabled={descargando}
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-base font-black text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] transition-all hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {descargando ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              {descargando ? s.installing : s.install}
+            </button>
+            <a
+              href={proyecto.repo_url || "#"}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 rounded-xl border border-white/15 px-6 py-3 text-base font-semibold text-white transition-colors hover:bg-white/5"
+            >
+              <GithubIcon className="h-4 w-4" />
+              {s.viewGithub}
+            </a>
+          </div>
+          {errorInstalador ? (
+            <p className="text-center text-xs text-red-400">{errorInstalador}</p>
+          ) : (
+            <p className="text-center text-xs text-zinc-500">{s.installHint}</p>
+          )}
         </div>
       </div>
     </div>

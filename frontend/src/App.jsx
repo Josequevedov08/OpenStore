@@ -13,6 +13,9 @@ const API_URL =
   import.meta.env.VITE_API_URL ||
   'https://app-repositorio-github.onrender.com/api/buscar-soluciones';
 
+// Mismo host que el buscador, para el endpoint del Instalador Inteligente.
+const INSTALLER_URL = API_URL.replace(/\/api\/buscar-soluciones\/?$/, '/api/generar-instalador');
+
 const LANG_KEY = 'appstore-idioma';
 
 // Textos de la interfaz por idioma. Inglés es el idioma por defecto.
@@ -352,7 +355,12 @@ export default function App() {
         </div>
       </div>
 
-      <Modal proyecto={proyectoActivo} onClose={() => setProyectoActivo(null)} idioma={idioma} />
+      <Modal
+        proyecto={proyectoActivo}
+        onClose={() => setProyectoActivo(null)}
+        idioma={idioma}
+        installerUrl={INSTALLER_URL}
+      />
     </div>
   );
 }
