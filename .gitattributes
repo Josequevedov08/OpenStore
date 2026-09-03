@@ -1,0 +1,13 @@
+# Trata estos formatos como binarios siempre: nunca conversión de saltos de
+# línea (CRLF/LF), nunca diff de texto — evita que un PDF o una imagen se
+# corrompan silenciosamente en un checkout de Windows con autocrlf activo.
+*.pdf binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.svg binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
