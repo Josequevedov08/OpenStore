@@ -1,0 +1,278 @@
+<title>Diagnóstico OpenStore</title>
+<style>
+:root {
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --border: #dde1e7;
+  --text: #14171f;
+  --text-dim: #5b6472;
+  --accent: #2563eb;
+  --accent-dim: #eaf0ff;
+  --ok: #15803d;
+  --ok-bg: #edf9f0;
+  --err: #b91c1c;
+  --err-bg: #fdeeee;
+  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121417;
+    --surface: #1a1d22;
+    --border: #2b2f36;
+    --text: #edf0f4;
+    --text-dim: #9aa3af;
+    --accent: #5b8dff;
+    --accent-dim: #1c2740;
+    --ok: #4ade80;
+    --ok-bg: #123321;
+    --err: #f87171;
+    --err-bg: #3a1616;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121417;
+  --surface: #1a1d22;
+  --border: #2b2f36;
+  --text: #edf0f4;
+  --text-dim: #9aa3af;
+  --accent: #5b8dff;
+  --accent-dim: #1c2740;
+  --ok: #4ade80;
+  --ok-bg: #123321;
+  --err: #f87171;
+  --err-bg: #3a1616;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  display: flex;
+  justify-content: center;
+  padding: 48px 20px;
+}
+main {
+  width: 100%;
+  max-width: 560px;
+}
+h1 {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 4px;
+  letter-spacing: -0.01em;
+}
+.sub {
+  color: var(--text-dim);
+  font-size: 14px;
+  margin: 0 0 28px;
+  line-height: 1.5;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 22px;
+  margin-bottom: 16px;
+}
+.card h2 {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  margin: 0 0 14px;
+  font-weight: 600;
+}
+button {
+  width: 100%;
+  border: none;
+  background: var(--accent);
+  color: white;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 13px 18px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: opacity 0.15s;
+}
+button:hover { opacity: 0.9; }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+button.secondary {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.step {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13.5px;
+}
+.step:last-child { border-bottom: none; }
+.step .label { flex: 1; color: var(--text-dim); }
+.step .result { font-family: var(--mono); font-size: 12.5px; text-align: right; }
+.dot {
+  width: 8px; height: 8px; border-radius: 999px; flex-shrink: 0; margin-top: 5px;
+  background: var(--text-dim);
+}
+.dot.ok { background: var(--ok); }
+.dot.err { background: var(--err); }
+.dot.pending { background: var(--accent); animation: pulse 1s infinite; }
+@keyframes pulse { 50% { opacity: 0.3; } }
+
+.badge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 700; }
+.badge.ok { background: var(--ok-bg); color: var(--ok); }
+.badge.err { background: var(--err-bg); color: var(--err); }
+
+pre {
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.6;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  margin: 12px 0 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 260px;
+  overflow-y: auto;
+  color: var(--text);
+}
+.hint {
+  font-size: 12.5px;
+  color: var(--text-dim);
+  margin-top: 10px;
+  line-height: 1.5;
+}
+.timer {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+</style>
+
+<main>
+  <h1>Diagnóstico de OpenStore</h1>
+  <p class="sub">Prueba directa contra el servidor, paso a paso. No necesitas saber de consolas — solo dale clic al botón.</p>
+
+  <div class="card">
+    <h2>Prueba</h2>
+    <button id="runBtn" onclick="runTest()">▶ Probar el servidor ahora</button>
+    <p class="hint" id="timerHint"></p>
+  </div>
+
+  <div class="card" id="stepsCard" style="display:none">
+    <h2>Pasos</h2>
+    <div id="steps"></div>
+  </div>
+
+  <div class="card" id="resultCard" style="display:none">
+    <h2>Resultado</h2>
+    <div id="resultSummary"></div>
+    <pre id="resultBody"></pre>
+  </div>
+</main>
+
+<script>
+const BASE = 'https://app-repositorio-github.onrender.com';
+
+function addStep(text) {
+  const steps = document.getElementById('steps');
+  document.getElementById('stepsCard').style.display = 'block';
+  const row = document.createElement('div');
+  row.className = 'step';
+  row.innerHTML = `<span class="dot pending"></span><span class="label">${text}</span><span class="result"></span>`;
+  steps.appendChild(row);
+  return row;
+}
+
+function finishStep(row, ok, resultText) {
+  row.querySelector('.dot').className = 'dot ' + (ok ? 'ok' : 'err');
+  row.querySelector('.result').textContent = resultText || '';
+}
+
+async function runTest() {
+  const btn = document.getElementById('runBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Probando…';
+  document.getElementById('steps').innerHTML = '';
+  document.getElementById('resultCard').style.display = 'none';
+  document.getElementById('timerHint').textContent = '';
+
+  const t0 = Date.now();
+  const elapsed = () => ((Date.now() - t0) / 1000).toFixed(1) + 's';
+
+  // Paso 1: salud del servidor
+  const s1 = addStep('Conectando al servidor (/health)…');
+  let healthOk = false;
+  try {
+    const r = await fetch(BASE + '/health');
+    const j = await r.json();
+    healthOk = r.ok;
+    finishStep(s1, r.ok, `HTTP ${r.status} · ${elapsed()}`);
+  } catch (e) {
+    finishStep(s1, false, e.message);
+    showResult(false, 'No se pudo ni conectar al servidor', `Error de red: ${e.name}: ${e.message}\n\nEsto normalmente significa que algo en tu conexión (antivirus, VPN, red del trabajo/escuela, firewall) está bloqueando la conexión a onrender.com — no es un problema de la app en sí.`);
+    resetBtn();
+    return;
+  }
+
+  // Paso 2: búsqueda real
+  const s2 = addStep('Enviando una búsqueda de prueba ("chatbot")…');
+  document.getElementById('timerHint').textContent = 'Esto puede tardar hasta un minuto — el servidor gratuito a veces necesita "despertar".';
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 120000);
+    const r = await fetch(BASE + '/api/buscar-soluciones', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: 'chatbot test', idioma: 'es' }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    const text = await r.text();
+    let data;
+    try { data = JSON.parse(text); } catch { data = null; }
+
+    if (!r.ok) {
+      finishStep(s2, false, `HTTP ${r.status} · ${elapsed()}`);
+      showResult(false, `El servidor respondió con un error (HTTP ${r.status})`, text.slice(0, 2000));
+    } else if (!Array.isArray(data)) {
+      finishStep(s2, false, `respuesta rara · ${elapsed()}`);
+      showResult(false, 'El servidor respondió OK pero con datos inesperados', text.slice(0, 2000));
+    } else {
+      finishStep(s2, true, `${data.length} resultados · ${elapsed()}`);
+      showResult(true, `Funciona: ${data.length} resultados recibidos en ${elapsed()}`,
+        data.length ? JSON.stringify(data[0], null, 2) : '(0 resultados — puede pasar con búsquedas muy específicas, no es un error)');
+    }
+  } catch (e) {
+    const isAbort = e.name === 'AbortError';
+    finishStep(s2, false, isAbort ? `sin respuesta en 120s` : e.message);
+    showResult(false, isAbort ? 'El servidor nunca respondió (120 segundos)' : 'Falló la búsqueda de prueba',
+      isAbort
+        ? 'El servidor tardó más de 2 minutos y se canceló. Esto puede pasar si las cuotas gratuitas de IA (Gemini/Groq) están agotadas y cada repo tarda el máximo antes de rendirse, o si el servidor está caído.'
+        : `Error de red: ${e.name}: ${e.message}`);
+  }
+  resetBtn();
+}
+
+function showResult(ok, summary, body) {
+  document.getElementById('resultCard').style.display = 'block';
+  document.getElementById('resultSummary').innerHTML =
+    `<span class="badge ${ok ? 'ok' : 'err'}">${ok ? '✓ FUNCIONA' : '✕ FALLA'}</span> ${summary}`;
+  document.getElementById('resultBody').textContent = body;
+}
+
+function resetBtn() {
+  const btn = document.getElementById('runBtn');
+  btn.disabled = false;
+  btn.textContent = '▶ Probar de nuevo';
+}
+</script>
