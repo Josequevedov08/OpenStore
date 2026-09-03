@@ -37,6 +37,9 @@ const STRINGS = {
     pending: 'Analysis pending',
     error: "Couldn't reach the server. Please try again in a moment.",
     noResults: 'No results found. Try a different search.',
+    footerManual: 'How it works',
+    footerTerms: 'Terms & Conditions',
+    footerPrivacy: 'Privacy Policy',
   },
   es: {
     heroTitle: 'Descubre. Instala. Escala.',
@@ -55,6 +58,9 @@ const STRINGS = {
     pending: 'Análisis pendiente',
     error: 'No se pudo contactar al servidor. Intenta de nuevo en un momento.',
     noResults: 'Sin resultados. Prueba con otra búsqueda.',
+    footerManual: 'Cómo funciona',
+    footerTerms: 'Términos y Condiciones',
+    footerPrivacy: 'Política de Privacidad',
   },
 };
 
@@ -353,6 +359,16 @@ export default function App() {
             )
           )}
         </div>
+
+        {/* Footer legal */}
+        <footer className="mt-10 flex w-full flex-col items-center gap-2 border-t border-white/10 py-8 text-xs text-zinc-500">
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
+            <a href="/manual.html" className="hover:text-zinc-300">{t.footerManual}</a>
+            <a href="/terminos.html" className="hover:text-zinc-300">{t.footerTerms}</a>
+            <a href="/privacidad.html" className="hover:text-zinc-300">{t.footerPrivacy}</a>
+          </div>
+          <span>OpenStore</span>
+        </footer>
       </div>
 
       <Modal

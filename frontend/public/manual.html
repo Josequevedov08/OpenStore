@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OpenStore — How it works</title>
+<link rel="icon" href="/favicon.svg" />
+<link rel="stylesheet" href="/legal-shared.css" />
+<style>
+  main { max-width: 920px; }
+  .steps {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+    margin: 28px 0 40px;
+  }
+  @media (max-width: 760px) { .steps { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 480px) { .steps { grid-template-columns: 1fr; } }
+  .step {
+    border: 1px solid rgba(255,255,255,.08); background: #1a1a1a;
+    border-radius: 16px; padding: 18px 16px; position: relative;
+  }
+  .step .num {
+    width: 26px; height: 26px; border-radius: 999px;
+    background: linear-gradient(135deg,#f97316,#fbbf24);
+    color: #171717; font-weight: 800; font-size: 13px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 12px;
+  }
+  .step svg { display: block; margin-bottom: 10px; }
+  .step h3 { color: #fff; font-size: 14px; margin: 0 0 6px; }
+  .step p { font-size: 12.5px; margin: 0; color: #a1a1aa; }
+
+  .flow {
+    border: 1px solid rgba(255,255,255,.08); background: #1a1a1a;
+    border-radius: 16px; padding: 22px; margin: 24px 0;
+  }
+  .flow-row { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+  .flow-row:last-child { margin-bottom: 0; }
+  .flow-dot {
+    width: 10px; height: 10px; border-radius: 999px; background: #3b82f6; flex-shrink: 0;
+    margin-top: 5px;
+  }
+  .flow-dot.warn { background: #f59e0b; }
+  .flow-dot.done { background: #22c55e; }
+  .flow-label { font-size: 13.5px; color: #d4d4d8; flex: 1; min-width: 0; }
+  .flow-branch { padding-left: 24px; border-left: 1px dashed rgba(255,255,255,.15); margin-left: 4px; }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a class="brand" href="/">OpenStore</a>
+  <div class="langswitch">
+    <button data-lang="en">EN</button>
+    <button data-lang="es">ES</button>
+  </div>
+</div>
+
+<main>
+  <div data-lang-block="en">
+    <h1>How OpenStore works</h1>
+    <p class="updated">A visual walkthrough — search, review, install.</p>
+
+    <div class="steps">
+      <div class="step">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <div class="num">1</div>
+        <h3>Search</h3>
+        <p>Type a keyword ("chatbot"), paste a repo URL, or use <code>@username</code> to browse someone's repos — it searches all of public GitHub.</p>
+      </div>
+      <div class="step">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg>
+        <div class="num">2</div>
+        <h3>Browse results</h3>
+        <p>Each card is an AI-generated, plain-language summary of a real repository's README — stars, language, and a short pitch.</p>
+      </div>
+      <div class="step">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2"><path d="M12 2l3 7h7l-5.5 4.5L18 21l-6-4.5L6 21l1.5-7.5L2 9h7z"/></svg>
+        <div class="num">3</div>
+        <h3>Open a card</h3>
+        <p>See the full pitch, tech stack, key features, external requirements, and real GitHub stats (issues, forks, last commit).</p>
+      </div>
+      <div class="step">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 21h16"/></svg>
+        <div class="num">4</div>
+        <h3>Pick your OS</h3>
+        <p>Click "Windows" or "Mac / Linux" to download a script built specifically for that repo — not a generic installer.</p>
+      </div>
+    </div>
+
+    <h2>What the downloaded script actually does</h2>
+    <p>Run it by double-clicking it. It works through these phases, in order, and stops to tell you before anything that needs your permission:</p>
+
+    <div class="flow">
+      <div class="flow-row"><span class="flow-dot warn"></span><span class="flow-label"><strong>0. Warning</strong> — tells you it's about to run real third-party code, so you should trust the author first.</span></div>
+      <div class="flow-row"><span class="flow-dot"></span><span class="flow-label"><strong>1. Checks Git</strong> is installed (<code>where</code> / <code>command -v</code>).</span></div>
+      <div class="flow-branch">
+        <div class="flow-row"><span class="flow-dot warn"></span><span class="flow-label">If missing → installs it with your system's own package manager (winget / Homebrew / apt / dnf) — you'll see a permission or password prompt from <em>your OS</em>, not from us.</span></div>
+      </div>
+      <div class="flow-row"><span class="flow-dot"></span><span class="flow-label"><strong>2. Checks the runtime</strong> this specific repo needs (Node.js, Python, etc.) the same way.</span></div>
+      <div class="flow-row"><span class="flow-dot"></span><span class="flow-label"><strong>3. Clones</strong> the repository to your Desktop (stops safely if a folder with that name already exists — it never overwrites anything).</span></div>
+      <div class="flow-row"><span class="flow-dot"></span><span class="flow-label"><strong>4. Installs dependencies</strong> with the right command for that project (<code>npm install</code>, <code>pip install -r requirements.txt</code>, etc.).</span></div>
+      <div class="flow-row"><span class="flow-dot done"></span><span class="flow-label"><strong>5. Starts the project</strong> — or, if no safe start command could be detected, opens the folder and tells you to check its README.</span></div>
+    </div>
+
+    <div class="notice">
+      <strong>Before you click Install:</strong> this genuinely runs code you didn't write, from a repository you may not know well. Only use it on repos from authors or organizations you trust — the AI-based checks stop the install <em>script</em> from doing anything destructive, but they can't audit the third-party project's own source code. See our <a href="/terminos.html">Terms</a> for the full disclaimer.
+    </div>
+  </div>
+
+  <div data-lang-block="es">
+    <h1>Cómo funciona OpenStore</h1>
+    <p class="updated">Un recorrido visual — buscar, revisar, instalar.</p>
+
+    <div class="steps">
+      <div class="step">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <div class="num">1</div>
+        <h3>Busca</h3>
+        <p>Escribe una palabra clave ("chatbot"), pega la URL de un repo, o usa <code>@usuario</code> para ver sus repos — busca en todo GitHub público.</p>
+      </div>
+      <div class="step">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg>
+        <div class="num">2</div>
+        <h3>Explora resultados</h3>
+        <p>Cada tarjeta es un resumen en lenguaje sencillo, generado por IA, del README real de un repositorio — estrellas, lenguaje y una propuesta corta.</p>
+      </div>
+      <div class="step">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2"><path d="M12 2l3 7h7l-5.5 4.5L18 21l-6-4.5L6 21l1.5-7.5L2 9h7z"/></svg>
+        <div class="num">3</div>
+        <h3>Abre una ficha</h3>
+        <p>Mira la propuesta completa, stack tecnológico, características clave, requisitos externos y estadísticas reales de GitHub.</p>
+      </div>
+      <div class="step">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 21h16"/></svg>
+        <div class="num">4</div>
+        <h3>Elige tu sistema</h3>
+        <p>Haz clic en "Windows" o "Mac / Linux" para descargar un script hecho específicamente para ese repo — no un instalador genérico.</p>
+      </div>
+    </div>
+
+    <h2>Qué hace realmente el script descargado</h2>
+    <p>Ejecútalo con doble clic. Avanza en estas fases, en orden, y se detiene a avisarte antes de cualquier cosa que necesite tu permiso:</p>
+
+    <div class="flow">
+      <div class="flow-row"><span class="flow-dot warn"></span><span class="flow-label"><strong>0. Advertencia</strong> — te dice que va a ejecutar código real de un tercero, así que primero debes confiar en el autor.</span></div>
+      <div class="flow-row"><span class="flow-dot"></span><span class="flow-label"><strong>1. Verifica que Git</strong> esté instalado (<code>where</code> / <code>command -v</code>).</span></div>
+      <div class="flow-branch">
+        <div class="flow-row"><span class="flow-dot warn"></span><span class="flow-label">Si falta → lo instala con el gestor de paquetes propio de tu sistema (winget / Homebrew / apt / dnf) — verás un aviso de permisos o contraseña de <em>tu sistema operativo</em>, no de nosotros.</span></div>
+      </div>
+      <div class="flow-row"><span class="flow-dot"></span><span class="flow-label"><strong>2. Verifica el runtime</strong> que ese repo específico necesita (Node.js, Python, etc.) de la misma forma.</span></div>
+      <div class="flow-row"><span class="flow-dot"></span><span class="flow-label"><strong>3. Clona</strong> el repositorio a tu Escritorio (se detiene de forma segura si ya existe una carpeta con ese nombre — nunca sobrescribe nada).</span></div>
+      <div class="flow-row"><span class="flow-dot"></span><span class="flow-label"><strong>4. Instala dependencias</strong> con el comando correcto para ese proyecto (<code>npm install</code>, <code>pip install -r requirements.txt</code>, etc.).</span></div>
+      <div class="flow-row"><span class="flow-dot done"></span><span class="flow-label"><strong>5. Arranca el proyecto</strong> — o, si no se pudo detectar un comando de inicio seguro, abre la carpeta y te dice que revises su README.</span></div>
+    </div>
+
+    <div class="notice">
+      <strong>Antes de hacer clic en Instalar:</strong> esto ejecuta de verdad código que tú no escribiste, de un repositorio que quizá no conoces bien. Úsalo solo con repos de autores u organizaciones en los que confíes — las validaciones basadas en IA evitan que el <em>script</em> de instalación haga algo destructivo, pero no pueden auditar el código fuente propio del proyecto de terceros. Consulta nuestros <a href="/terminos.html">Términos</a> para el descargo completo.
+    </div>
+  </div>
+</main>
+
+<script src="/legal-shared.js"></script>
+</body>
+</html>

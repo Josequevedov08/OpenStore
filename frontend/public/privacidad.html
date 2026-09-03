@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OpenStore — Privacy Policy</title>
+<link rel="icon" href="/favicon.svg" />
+<link rel="stylesheet" href="/legal-shared.css" />
+</head>
+<body>
+<div class="topbar">
+  <a class="brand" href="/">OpenStore</a>
+  <div class="langswitch">
+    <button data-lang="en">EN</button>
+    <button data-lang="es">ES</button>
+  </div>
+</div>
+
+<main>
+  <div class="notice" data-lang-block="en">
+    Written to be genuinely clear about what happens to your data — not a legal template. If this becomes a commercial product, have a lawyer adapt it to your jurisdiction (GDPR, CCPA, etc.).
+  </div>
+  <div class="notice" data-lang-block="es">
+    Escrito para ser genuinamente claro sobre qué pasa con tus datos — no es una plantilla legal. Si esto se vuelve un producto comercial, pide a un abogado que lo adapte a tu jurisdicción (RGPD, CCPA, etc.).
+  </div>
+
+  <div data-lang-block="en">
+    <h1>Privacy Policy</h1>
+    <p class="updated">Last updated: September 2026</p>
+
+    <h2>1. There are no user accounts</h2>
+    <p>OpenStore doesn't require sign-up, login, or any personal information to use. We don't know who you are.</p>
+
+    <h2>2. What happens when you search</h2>
+    <p>The text you type is sent from your browser to our backend, which in turn sends it to:</p>
+    <ul>
+      <li><strong>GitHub's public API</strong> — to search repositories and read their public README.</li>
+      <li><strong>Google's Gemini API</strong> (or another AI provider the operator configures) — to summarize that README into a commercial pitch.</li>
+    </ul>
+    <p>Your search query is processed by those third-party APIs under their own privacy terms: see <a href="https://ai.google.dev/gemini-api/terms" target="_blank" rel="noopener">Google's Gemini API terms</a> and <a href="https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement" target="_blank" rel="noopener">GitHub's Privacy Statement</a>.</p>
+
+    <h2>3. What we store on our own servers</h2>
+    <p>By default: nothing tied to you. We don't run analytics, we don't set tracking cookies, and there's no database of your searches.</p>
+    <p>The codebase includes an optional, currently-inactive integration that can log generated results to a Google Sheet for the operator's own recordkeeping — it only activates if the operator manually configures credentials for it. If it's ever enabled, it stores repository data and AI-generated text, not anything that identifies you personally.</p>
+
+    <h2>4. What's stored in your browser</h2>
+    <p>Only one thing, using your browser's <code>localStorage</code>: your EN/ES language preference. It never leaves your device and isn't sent to us.</p>
+
+    <h2>5. The Smart Installer</h2>
+    <p>When you download an installer script, the request includes the repository's URL and the AI-derived install/start commands — no personal data. The script itself runs entirely on your own machine; nothing about what it does locally (cloning, installing, running) is sent back to us.</p>
+
+    <h2>6. Third-party links</h2>
+    <p>Clicking "View on GitHub" or a repository's own links takes you to sites we don't control, each with its own privacy policy.</p>
+
+    <h2>7. Changes</h2>
+    <p>This policy may be updated as the project evolves; the "last updated" date above will change accordingly.</p>
+
+    <h2>8. Contact</h2>
+    <p>Questions about your data? Reach the project owner via <a href="https://github.com/Josequevedov08" target="_blank" rel="noopener">GitHub</a>.</p>
+  </div>
+
+  <div data-lang-block="es">
+    <h1>Política de Privacidad</h1>
+    <p class="updated">Última actualización: septiembre de 2026</p>
+
+    <h2>1. No hay cuentas de usuario</h2>
+    <p>OpenStore no requiere registro, inicio de sesión ni ningún dato personal para usarse. No sabemos quién eres.</p>
+
+    <h2>2. Qué pasa cuando buscas</h2>
+    <p>El texto que escribes se envía desde tu navegador a nuestro backend, que a su vez lo envía a:</p>
+    <ul>
+      <li><strong>La API pública de GitHub</strong> — para buscar repositorios y leer su README público.</li>
+      <li><strong>La API de Gemini de Google</strong> (u otro proveedor de IA que configure quien opera el servicio) — para resumir ese README en una ficha comercial.</li>
+    </ul>
+    <p>Tu búsqueda es procesada por esas APIs de terceros bajo sus propios términos de privacidad: consulta los <a href="https://ai.google.dev/gemini-api/terms" target="_blank" rel="noopener">términos de la API de Gemini de Google</a> y la <a href="https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement" target="_blank" rel="noopener">Declaración de Privacidad de GitHub</a>.</p>
+
+    <h2>3. Qué guardamos en nuestros propios servidores</h2>
+    <p>Por defecto: nada asociado a ti. No usamos analítica, no ponemos cookies de rastreo, y no existe una base de datos de tus búsquedas.</p>
+    <p>El código incluye una integración opcional, actualmente inactiva, que puede registrar los resultados generados en una hoja de Google para el registro propio de quien opera el servicio — solo se activa si esa persona configura manualmente credenciales para ello. Si alguna vez se activa, guarda datos del repositorio y texto generado por IA, no algo que te identifique personalmente.</p>
+
+    <h2>4. Qué se guarda en tu navegador</h2>
+    <p>Solo una cosa, usando el <code>localStorage</code> de tu navegador: tu preferencia de idioma EN/ES. Nunca sale de tu dispositivo ni nos llega a nosotros.</p>
+
+    <h2>5. El Instalador Inteligente</h2>
+    <p>Al descargar un script de instalación, la petición incluye la URL del repositorio y los comandos de instalación/arranque extraídos por la IA — sin datos personales. El script en sí corre completamente en tu propia máquina; nada de lo que hace localmente (clonar, instalar, ejecutar) nos llega de vuelta.</p>
+
+    <h2>6. Enlaces a terceros</h2>
+    <p>Al hacer clic en "Ver en GitHub" o en los enlaces propios de un repositorio, sales a sitios que no controlamos, cada uno con su propia política de privacidad.</p>
+
+    <h2>7. Cambios</h2>
+    <p>Esta política puede actualizarse conforme evolucione el proyecto; la fecha de "última actualización" de arriba cambiará en consecuencia.</p>
+
+    <h2>8. Contacto</h2>
+    <p>¿Preguntas sobre tus datos? Contacta al dueño del proyecto vía <a href="https://github.com/Josequevedov08" target="_blank" rel="noopener">GitHub</a>.</p>
+  </div>
+</main>
+
+<script src="/legal-shared.js"></script>
+</body>
+</html>

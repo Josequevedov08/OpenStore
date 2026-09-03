@@ -26,6 +26,7 @@ from pydantic import BaseModel
 from instalador import (
     GESTORES_VALIDOS,
     generar_bat,
+    generar_sh,
     normalizar_gestor,
     sanitizar_comando_arranque,
 )
@@ -816,14 +817,17 @@ class InstaladorRequest(BaseModel):
     gestor_paquetes: Optional[str] = "none"
     comando_arranque: Optional[str] = ""
     idioma: Optional[str] = "en"
+    plataforma: Optional[str] = "windows"  # "windows" o "unix" (macOS/Linux)
 
 
 @app.post("/api/generar-instalador")
 async def generar_instalador(payload: InstaladorRequest):
     # Todo se vuelve a validar aquí server-side: nunca confiamos en que el
     # cliente reenvíe exactamente lo que nosotros mismos calculamos antes.
+    plataforma = "unix" if (payload.plataforma or "").lower() == "unix" else "windows"
+    generador = generar_sh if plataforma == "unix" else generar_bat
     try:
-        contenido = generar_bat(
+        contenido = generador(
             repo_url=payload.repo_url,
             nombre=payload.nombre or "proyecto",
             lenguaje_principal=payload.lenguaje_principal or "",
@@ -837,12 +841,14 @@ async def generar_instalador(payload: InstaladorRequest):
     nombre_archivo = "".join(
         c for c in (payload.nombre or "instalador") if c.isalnum() or c in ("-", "_")
     ) or "instalador"
+    extension = "sh" if plataforma == "unix" else "bat"
+    media_type = "application/x-sh" if plataforma == "unix" else "application/bat"
 
     return Response(
         content=contenido,
-        media_type="application/bat",
+        media_type=media_type,
         headers={
-            "Content-Disposition": f'attachment; filename="instalar-{nombre_archivo}.bat"'
+            "Content-Disposition": f'attachment; filename="instalar-{nombre_archivo}.{extension}"'
         },
     )
 

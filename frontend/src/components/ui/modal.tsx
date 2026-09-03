@@ -51,10 +51,11 @@ const MODAL_STRINGS = {
     author: "Author",
     license: "License",
     lastCommit: "Last Commit",
-    install: "Download for Windows",
-    installing: "Generating installer…",
+    installWin: "Windows",
+    installUnix: "Mac / Linux",
+    installing: "Generating…",
     installHint:
-      "Downloads a script that clones this repo to your Desktop, installs missing tools via winget (Windows will ask for permission) and starts it. Windows/x64 only, for now.",
+      "Downloads a script that clones this repo to your Desktop, auto-installs missing tools (winget / Homebrew / apt / dnf) and starts it. Only run this if you trust the repo's author — it runs real third-party code.",
     installError: "Couldn't generate the installer. Try again in a moment.",
     viewGithub: "View on GitHub",
   },
@@ -70,10 +71,11 @@ const MODAL_STRINGS = {
     author: "Autor",
     license: "Licencia",
     lastCommit: "Último Commit",
-    install: "Descargar para Windows",
-    installing: "Generando instalador…",
+    installWin: "Windows",
+    installUnix: "Mac / Linux",
+    installing: "Generando…",
     installHint:
-      "Descarga un script que clona este repo en tu Escritorio, instala las herramientas que falten con winget (Windows pedirá tu permiso) y lo arranca. Por ahora, solo Windows/x64.",
+      "Descarga un script que clona este repo en tu Escritorio, instala automáticamente las herramientas que falten (winget / Homebrew / apt / dnf) y lo arranca. Solo úsalo si confías en el autor del repo — ejecuta código real de un tercero.",
     installError: "No se pudo generar el instalador. Intenta de nuevo en un momento.",
     viewGithub: "Ver en GitHub",
   },
@@ -81,7 +83,7 @@ const MODAL_STRINGS = {
 
 export default function Modal({ proyecto, onClose, idioma = "en", installerUrl }: ModalProps) {
   const s = MODAL_STRINGS[idioma] ?? MODAL_STRINGS.en;
-  const [descargando, setDescargando] = useState(false);
+  const [descargando, setDescargando] = useState<"windows" | "unix" | null>(null);
   const [errorInstalador, setErrorInstalador] = useState("");
 
   useEffect(() => {
@@ -98,14 +100,14 @@ export default function Modal({ proyecto, onClose, idioma = "en", installerUrl }
 
   useEffect(() => {
     setErrorInstalador("");
-    setDescargando(false);
+    setDescargando(null);
   }, [proyecto?.repo_url]);
 
   if (!proyecto) return null;
 
-  const handleInstalar = async () => {
+  const handleInstalar = async (plataforma: "windows" | "unix") => {
     if (!installerUrl) return;
-    setDescargando(true);
+    setDescargando(plataforma);
     setErrorInstalador("");
     try {
       const res = await fetch(installerUrl, {
@@ -118,14 +120,16 @@ export default function Modal({ proyecto, onClose, idioma = "en", installerUrl }
           gestor_paquetes: proyecto.gestor_paquetes,
           comando_arranque: proyecto.comando_arranque,
           idioma,
+          plataforma,
         }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
+      const ext = plataforma === "unix" ? "sh" : "bat";
       const a = document.createElement("a");
       a.href = url;
-      a.download = `instalar-${(proyecto.titulo_comercial || "proyecto").replace(/[^a-zA-Z0-9-_]/g, "")}.bat`;
+      a.download = `instalar-${(proyecto.titulo_comercial || "proyecto").replace(/[^a-zA-Z0-9-_]/g, "")}.${ext}`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -133,7 +137,7 @@ export default function Modal({ proyecto, onClose, idioma = "en", installerUrl }
     } catch {
       setErrorInstalador(s.installError);
     } finally {
-      setDescargando(false);
+      setDescargando(null);
     }
   };
 
@@ -272,27 +276,40 @@ export default function Modal({ proyecto, onClose, idioma = "en", installerUrl }
             )}
         </div>
 
-        {/* Footer: el CTA principal descarga el Instalador Inteligente */}
+        {/* Footer: el CTA principal descarga el Instalador Inteligente (Windows o Mac/Linux) */}
         <div className="flex flex-col gap-3 border-t border-white/10 p-6">
-          <div className="flex flex-col gap-3 sm:flex-row">
+          <div className="flex flex-col gap-2 sm:flex-row">
             <button
               type="button"
-              onClick={handleInstalar}
-              disabled={descargando}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-base font-black text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] transition-all hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+              onClick={() => handleInstalar("windows")}
+              disabled={descargando !== null}
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-black text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] transition-all hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {descargando ? (
+              {descargando === "windows" ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <Download className="h-4 w-4" />
               )}
-              {descargando ? s.installing : s.install}
+              {descargando === "windows" ? s.installing : s.installWin}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleInstalar("unix")}
+              disabled={descargando !== null}
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600/80 px-4 py-3 text-sm font-black text-white shadow-[0_0_20px_rgba(37,99,235,0.3)] transition-all hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {descargando === "unix" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              {descargando === "unix" ? s.installing : s.installUnix}
             </button>
             <a
               href={proyecto.repo_url || "#"}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 rounded-xl border border-white/15 px-6 py-3 text-base font-semibold text-white transition-colors hover:bg-white/5"
+              className="flex items-center justify-center gap-2 rounded-xl border border-white/15 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/5"
             >
               <GithubIcon className="h-4 w-4" />
               {s.viewGithub}
