@@ -67,6 +67,33 @@ except Exception:  # pragma: no cover
 
 load_dotenv()
 
+
+def _env_int(name: str, default: int) -> int:
+    """Lee una variable de entorno numérica sin poder tumbar el servidor si
+    alguien la puso mal (p.ej. "4.5" en un campo que espera un entero) —
+    avisa por log y usa el valor por defecto en vez de lanzar una excepción
+    en tiempo de import."""
+    raw = os.getenv(name)
+    if raw is None or raw.strip() == "":
+        return default
+    try:
+        return int(float(raw))
+    except ValueError:
+        print(f"[CONFIG] {name}='{raw}' no es un número válido; usando {default}.")
+        return default
+
+
+def _env_float(name: str, default: float) -> float:
+    raw = os.getenv(name)
+    if raw is None or raw.strip() == "":
+        return default
+    try:
+        return float(raw)
+    except ValueError:
+        print(f"[CONFIG] {name}='{raw}' no es un número válido; usando {default}.")
+        return default
+
+
 # ---------------------------------------------------------------------------
 # Configuración
 # ---------------------------------------------------------------------------
@@ -103,7 +130,7 @@ AI_FALLBACK_MODEL = os.getenv("AI_FALLBACK_MODEL") or DEFAULT_MODELS.get(
 # IA/GitHub dentro de la ventana de TTL. Es en memoria (se reinicia si el
 # proceso se reinicia), suficiente para una sola instancia como esta.
 # ---------------------------------------------------------------------------
-SEARCH_CACHE_TTL_SECONDS = int(os.getenv("SEARCH_CACHE_TTL_SECONDS", "900"))  # 15 min
+SEARCH_CACHE_TTL_SECONDS = _env_int("SEARCH_CACHE_TTL_SECONDS", 900)  # 15 min
 _SEARCH_CACHE_MAX_ENTRIES = 500
 _search_cache: dict[str, tuple[float, list]] = {}
 
@@ -429,12 +456,10 @@ def get_system_prompt(idioma: str) -> str:
 # del free tier de cualquier proveedor (p.ej. 15 RPM de Gemini), y evita el
 # tiempo de espera de 60-90s+ que causaba timeouts en producción.
 DEFAULT_CONCURRENCY = {"gemini": 10, "groq": 10, "openai": 8, "anthropic": 8}
-AI_CONCURRENCY = int(
-    os.getenv("AI_CONCURRENCY", DEFAULT_CONCURRENCY.get(AI_PROVIDER, 4))
-)
+AI_CONCURRENCY = _env_int("AI_CONCURRENCY", DEFAULT_CONCURRENCY.get(AI_PROVIDER, 4))
 # Tiempo máximo de espera por una respuesta del LLM antes de rendirse y caer
 # al fallback. Sin esto, una llamada colgada bloquearía toda la búsqueda.
-AI_CALL_TIMEOUT_SECONDS = float(os.getenv("AI_CALL_TIMEOUT_SECONDS", "30"))
+AI_CALL_TIMEOUT_SECONDS = _env_float("AI_CALL_TIMEOUT_SECONDS", 30.0)
 
 
 def _cliente_ia(provider: str, api_key: str):
