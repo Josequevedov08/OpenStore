@@ -15,6 +15,10 @@ const API_URL =
 
 // Mismo host que el buscador, para el endpoint del Instalador Inteligente.
 const INSTALLER_URL = API_URL.replace(/\/api\/buscar-soluciones\/?$/, '/api/generar-instalador');
+// El backend gratuito (Render) "duerme" tras inactividad; la primera
+// petición mientras despierta puede fallar rápido en vez de esperar.
+// Lo despertamos apenas carga la página, antes de que el usuario busque.
+const HEALTH_URL = API_URL.replace(/\/api\/buscar-soluciones\/?$/, '/health');
 
 const LANG_KEY = 'appstore-idioma';
 
@@ -33,7 +37,7 @@ const STRINGS = {
     grid: 'Grid',
     list: 'List',
     loading: 'Searching all of GitHub…',
-    loadingSlow: 'Still working — the AI is reading each README, this can take up to a minute.',
+    loadingSlow: "Still working — the free server may be waking up from idle, or the AI is reading each README. This can take up to a minute.",
     viewDetails: 'Get',
     pending: 'Analysis pending',
     error: "Couldn't reach the server. Please try again in a moment.",
@@ -57,7 +61,7 @@ const STRINGS = {
     grid: 'Grid',
     list: 'Lista',
     loading: 'Buscando en todo GitHub…',
-    loadingSlow: 'Seguimos trabajando — la IA está leyendo cada README, puede tardar hasta un minuto.',
+    loadingSlow: 'Seguimos trabajando — puede que el servidor gratuito esté "despertando", o la IA está leyendo cada README. Puede tardar hasta un minuto.',
     viewDetails: 'Instalar',
     pending: 'Análisis pendiente',
     error: 'No se pudo contactar al servidor. Intenta de nuevo en un momento.',
@@ -232,6 +236,15 @@ export default function App() {
     }
   }, [idioma]);
 
+  // "Despierta" el backend gratuito apenas se carga la página (fire-and-
+  // forget, no bloquea nada) para que ya esté listo cuando el usuario
+  // termine de escribir su búsqueda, en vez de despertarlo justo entonces.
+  useEffect(() => {
+    fetch(HEALTH_URL).catch(() => {
+      // Silencioso: si falla, la búsqueda real simplemente lo reintentará.
+    });
+  }, []);
+
   // Métricas reales derivadas del último batch de resultados (nada de
   // números inventados): repos encontrados, estrellas combinadas y
   // cantidad de lenguajes distintos detectados.
@@ -260,9 +273,10 @@ export default function App() {
     setResultados([]);
     // Timeout defensivo: si el backend se cuelga por lo que sea, el usuario
     // ve un error accionable en vez de un spinner infinito. Una búsqueda
-    // normal tarda unos 15-30s; 90s ya es una señal clara de que algo falló.
+    // normal tarda 15-30s, pero el backend gratuito puede tardar 30-50s más
+    // en "despertar" si estaba dormido — 120s da margen para ambos casos.
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 90_000);
+    const timeoutId = setTimeout(() => controller.abort(), 120_000);
     const slowId = setTimeout(() => setIsSlow(true), 8_000);
     try {
       const res = await fetch(API_URL, {
