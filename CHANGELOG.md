@@ -2,7 +2,30 @@
 
 High-level record of the work done on OpenStore, newest first. For the full commit-by-commit detail, see the git history.
 
-## 2026-09-03
+## 2026-09-03 — Theme, favorites, compare, filters, history, PWA, admin panel
+
+### Fixed
+- **"Recently updated" sort surfaced near-zero-star junk** (e.g. searching "CRM" and sorting by "Actualizados" returned repos with 0–9 stars instead of established projects). GitHub's `sort=updated` alone has no quality floor; a `stars:>50` qualifier is now appended automatically when the user hasn't already added their own `stars:` filter.
+- **Modal's own repo image could still show broken** — the earlier broken-image fix only covered the search-result Card; the install Modal has its own `<img>` and needed the same `FALLBACK_IMG` + `onError` handling.
+- **Theme never actually persisted across reloads** — it was saved via a JSON-stringifying helper but read back as a raw string, so `"light"` (with the JSON quotes) never matched the raw comparison and the app silently fell back to dark on every reload. Fixed the write path to store a plain string.
+- **`KineticGrid`'s animated background was hardcoded dark-only** (`#161618` fill, white-based line/dot/node colors) — turning on light mode made the whole full-viewport canvas paint dark over the new light UI. It now takes a `theme` prop and picks a light or dark palette (background, dots, lines, nodes, glow, ripple).
+- `ExpandablePitch`'s "Leer más/Leer menos" button was hardcoded in Spanish regardless of the active UI language.
+
+### Added
+- **Real light/dark theme** across every component, driven by CSS custom properties (`:root` / `[data-theme="light"]`) instead of hardcoded hex colors; persisted to `localStorage` and applied before first paint (no flash) via an inline script in `index.html`.
+- **Favorites**: bookmark any result, browse them in a dedicated view, persisted locally.
+- **Compare**: select up to 3 repos and see them side-by-side (stars, forks, issues, language, license, tech stack).
+- **Filters**: client-side language / license / "has an installer" filters over the current result set.
+- **Install history**: every successful Smart Installer download is logged locally (title, repo, platform, date) and browsable from a History panel.
+- **Accessibility**: a global `:focus-visible` outline for keyboard navigation.
+- **PWA**: web app manifest, brand-colored icons (192/512/512-maskable/apple-touch), and a minimal service worker (network-first for navigation with an offline app-shell fallback, cache-first for static assets) — installable on desktop and mobile. Search itself still needs a live connection; only the shell works offline.
+- **In-house, privacy-respecting analytics**: in-memory-only aggregate counters (total searches, cache hit rate, AI-processed vs. fallback ratio, top search terms) — no cookies, no per-user tracking, wiped on every restart. Exposed only via a token-gated `GET /api/admin/stats` endpoint (`503` until `ADMIN_TOKEN` is set), viewable through a small standalone dashboard at `/admin.html`. The Privacy Policy was updated to disclose exactly what this counts.
+- pytest coverage for the admin endpoint's auth (missing token, wrong token, unconfigured server, correct token) and for the analytics counters.
+
+### Changed
+- Privacy Policy (`/privacidad.html`, EN/ES): rewrote the "what we store" and "what's in your browser" sections to reflect the new aggregate analytics and the new `localStorage` keys (theme, favorites, comparisons, history) — previously it said "no analytics" outright, which stopped being true.
+
+## 2026-09-03 (earlier)
 
 ### Fixed
 - **Root cause of every search failing on the deployed app**: a Vercel environment variable (`VITE_API_URL`) had a Markdown-formatted link (`[text](url)`) pasted into it instead of a plain URL, so every `fetch()` call threw `TypeError: Failed to parse URL`. Found by adding a visible error detail to the UI banner instead of a generic message, after ruling out DNS, browser extensions, antivirus, and general network flakiness across an extensive live debugging session.

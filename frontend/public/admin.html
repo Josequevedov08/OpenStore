@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OpenStore — Admin</title>
+<meta name="robots" content="noindex, nofollow" />
+<link rel="icon" href="/favicon.svg" />
+<link rel="stylesheet" href="/legal-shared.css" />
+<style>
+  main { max-width: 920px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 20px 0 28px; }
+  .stat { border: 1px solid rgba(255,255,255,.08); background: #1a1a1a; border-radius: 14px; padding: 16px 18px; }
+  .stat .v { font-size: 24px; font-weight: 800; color: #fff; }
+  .stat .l { font-size: 12px; color: #71717a; text-transform: uppercase; letter-spacing: .04em; margin-top: 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,.06); }
+  th { color: #71717a; font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: .04em; }
+  td { color: #d4d4d8; }
+  .gate { max-width: 420px; margin: 80px auto; text-align: center; }
+  .gate input {
+    width: 100%; padding: 12px 14px; border-radius: 10px; margin: 16px 0;
+    border: 1px solid rgba(255,255,255,.12); background: #1a1a1a; color: #fff; font-size: 14px;
+  }
+  .gate button, .refresh {
+    background: #fff; color: #111; border: none; border-radius: 10px;
+    padding: 10px 18px; font-weight: 700; font-size: 13.5px; cursor: pointer;
+  }
+  .err { color: #f87171; font-size: 13.5px; margin-top: 10px; min-height: 18px; }
+  #dashboard { display: none; }
+  .toprow { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+  .muted { color: #71717a; font-size: 12.5px; }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a class="brand" href="/">OpenStore</a>
+  <div class="langswitch">
+    <button data-lang="en">EN</button>
+    <button data-lang="es">ES</button>
+  </div>
+</div>
+
+<main>
+  <div id="gate" class="gate">
+    <div data-lang-block="en">
+      <h1>Admin panel</h1>
+      <p>Aggregate, anonymous usage stats — no personal data, ever. Enter the admin token to continue.</p>
+    </div>
+    <div data-lang-block="es">
+      <h1>Panel de administración</h1>
+      <p>Estadísticas de uso agregadas y anónimas — nunca datos personales. Ingresa el token de administración para continuar.</p>
+    </div>
+    <input id="token" type="password" placeholder="ADMIN_TOKEN" autocomplete="off" />
+    <button id="entrar" data-lang-en="View stats" data-lang-es="Ver estadísticas">View stats</button>
+    <div class="err" id="error"></div>
+  </div>
+
+  <div id="dashboard">
+    <div class="toprow">
+      <h1 style="margin:0" data-lang-en="Admin panel" data-lang-es="Panel de administración">Admin panel</h1>
+      <button class="refresh" id="refrescar" data-lang-en="Refresh" data-lang-es="Actualizar">Refresh</button>
+    </div>
+    <p class="updated muted" id="uptime"></p>
+
+    <div class="grid" id="stat-cards"></div>
+
+    <h2 data-lang-en="Most searched queries" data-lang-es="Búsquedas más frecuentes">Most searched queries</h2>
+    <table id="tabla-queries">
+      <thead>
+        <tr>
+          <th data-lang-en="Query" data-lang-es="Búsqueda">Query</th>
+          <th data-lang-en="Times" data-lang-es="Veces">Times</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <h2 data-lang-en="Service configuration" data-lang-es="Configuración del servicio">Service configuration</h2>
+    <table id="tabla-config">
+      <tbody></tbody>
+    </table>
+  </div>
+</main>
+
+<script src="/legal-shared.js"></script>
+<script>
+(function () {
+  var DEFAULT_API = "https://app-repositorio-github.onrender.com";
+  var qsApi = new URLSearchParams(location.search).get("api");
+  var API_BASE = (qsApi || localStorage.getItem("openstore-admin-api") || DEFAULT_API).replace(/\/$/, "");
+  if (qsApi) {
+    try { localStorage.setItem("openstore-admin-api", qsApi); } catch (e) {}
+  }
+
+  function lang() {
+    try { return localStorage.getItem("appstore-idioma") === "es" ? "es" : "en"; } catch (e) { return "en"; }
+  }
+
+  function aplicarTextosEstaticos() {
+    var l = lang();
+    document.querySelectorAll("[data-lang-en]").forEach(function (el) {
+      var txt = el.getAttribute(l === "es" ? "data-lang-es" : "data-lang-en");
+      if (txt) el.textContent = txt;
+    });
+  }
+
+  function labelPercent(n) { return (n * 100).toFixed(1) + "%"; }
+
+  function fmtUptime(seconds) {
+    var h = Math.floor(seconds / 3600);
+    var m = Math.floor((seconds % 3600) / 60);
+    return lang() === "es" ? ("Activo hace " + h + "h " + m + "m") : ("Up for " + h + "h " + m + "m");
+  }
+
+  function statCard(value, labelEn, labelEs) {
+    var div = document.createElement("div");
+    div.className = "stat";
+    div.innerHTML = '<div class="v">' + value + '</div><div class="l">' + (lang() === "es" ? labelEs : labelEn) + "</div>";
+    return div;
+  }
+
+  function render(data) {
+    document.getElementById("gate").style.display = "none";
+    document.getElementById("dashboard").style.display = "block";
+    document.getElementById("uptime").textContent = fmtUptime(data.uptime_seconds);
+
+    var cards = document.getElementById("stat-cards");
+    cards.innerHTML = "";
+    cards.appendChild(statCard(data.busquedas_totales, "Total searches", "Búsquedas totales"));
+    cards.appendChild(statCard(labelPercent(data.cache_hit_rate), "Cache hit rate", "Aciertos de caché"));
+    cards.appendChild(statCard(data.cache_size, "Cached entries", "Entradas en caché"));
+    cards.appendChild(statCard(data.instaladores_generados, "Installers generated", "Instaladores generados"));
+    cards.appendChild(statCard(data.fichas_con_ia, "AI-processed cards", "Fichas con IA"));
+    cards.appendChild(statCard(data.fichas_fallback, "Fallback cards", "Fichas de respaldo"));
+    cards.appendChild(statCard(data.busquedas_rechazadas_rate_limit, "Rate-limited requests", "Peticiones bloqueadas"));
+
+    var tbody = document.querySelector("#tabla-queries tbody");
+    tbody.innerHTML = "";
+    (data.top_queries || []).forEach(function (row) {
+      var tr = document.createElement("tr");
+      tr.innerHTML = "<td>" + row[0].replace(/</g, "&lt;") + "</td><td>" + row[1] + "</td>";
+      tbody.appendChild(tr);
+    });
+    if (!data.top_queries || !data.top_queries.length) {
+      tbody.innerHTML = '<tr><td colspan="2" class="muted">' +
+        (lang() === "es" ? "Sin datos todavía." : "No data yet.") + "</td></tr>";
+    }
+
+    var cfgBody = document.querySelector("#tabla-config tbody");
+    cfgBody.innerHTML = "";
+    Object.keys(data.config || {}).forEach(function (k) {
+      var tr = document.createElement("tr");
+      tr.innerHTML = "<td>" + k + "</td><td>" + data.config[k] + "</td>";
+      cfgBody.appendChild(tr);
+    });
+  }
+
+  function cargar(token) {
+    var errEl = document.getElementById("error");
+    errEl.textContent = "";
+    fetch(API_BASE + "/api/admin/stats?token=" + encodeURIComponent(token))
+      .then(function (r) {
+        if (r.status === 401) throw new Error(lang() === "es" ? "Token inválido." : "Invalid token.");
+        if (r.status === 503) throw new Error(lang() === "es" ? "El servidor no tiene ADMIN_TOKEN configurado." : "Server has no ADMIN_TOKEN configured.");
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      })
+      .then(function (data) {
+        try { sessionStorage.setItem("openstore-admin-token", token); } catch (e) {}
+        render(data);
+      })
+      .catch(function (e) {
+        errEl.textContent = e.message || String(e);
+      });
+  }
+
+  window.addEventListener("DOMContentLoaded", function () {
+    aplicarTextosEstaticos();
+    document.querySelectorAll(".langswitch button").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        aplicarTextosEstaticos();
+        var saved = "";
+        try { saved = sessionStorage.getItem("openstore-admin-token") || ""; } catch (e) {}
+        if (saved && document.getElementById("dashboard").style.display === "block") cargar(saved);
+      });
+    });
+
+    var tokenInput = document.getElementById("token");
+    document.getElementById("entrar").addEventListener("click", function () {
+      if (tokenInput.value.trim()) cargar(tokenInput.value.trim());
+    });
+    tokenInput.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" && tokenInput.value.trim()) cargar(tokenInput.value.trim());
+    });
+    document.getElementById("refrescar").addEventListener("click", function () {
+      var t = sessionStorage.getItem("openstore-admin-token");
+      if (t) cargar(t);
+    });
+
+    var saved = "";
+    try { saved = sessionStorage.getItem("openstore-admin-token") || ""; } catch (e) {}
+    if (saved) cargar(saved);
+  });
+})();
+</script>
+</body>
+</html>

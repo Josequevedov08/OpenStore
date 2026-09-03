@@ -14,7 +14,9 @@ import asyncio
 import json
 import os
 import random
+import secrets
 import time
+from collections import Counter
 from datetime import datetime, timezone
 from typing import Any, Optional
 
@@ -177,6 +179,51 @@ def _check_rate_limit(ip: str) -> bool:
         return False
     hits.append(now)
     return True
+
+
+# ---------------------------------------------------------------------------
+# Analítica propia, mínima y agregada — sin base de datos, sin cookies, sin
+# nada asociado a una persona. Sirve solo para el panel de administración
+# (capacidad, salud del servicio). Se reinicia si el proceso se reinicia,
+# igual que la caché y el rate limiter de arriba. Ver Política de Privacidad:
+# se documenta exactamente qué se cuenta aquí.
+# ---------------------------------------------------------------------------
+ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "")
+_TOP_QUERIES_MAX = 30  # evita crecimiento sin límite en procesos de larga vida
+
+_analytics = {
+    "started_at": time.time(),
+    "busquedas_totales": 0,
+    "cache_hits": 0,
+    "instaladores_generados": 0,
+    "busquedas_rechazadas_rate_limit": 0,
+    "fichas_con_ia": 0,
+    "fichas_fallback": 0,
+    "top_queries": Counter(),
+}
+
+
+def _registrar_busqueda(query: str, desde_cache: bool) -> None:
+    _analytics["busquedas_totales"] += 1
+    if desde_cache:
+        _analytics["cache_hits"] += 1
+    contador = _analytics["top_queries"]
+    contador[query.strip().lower()] += 1
+    if len(contador) > _TOP_QUERIES_MAX * 4:
+        # Poda periódica: nos quedamos solo con las más buscadas para que el
+        # dict no crezca indefinidamente en un proceso de larga vida.
+        _analytics["top_queries"] = Counter(dict(contador.most_common(_TOP_QUERIES_MAX)))
+
+
+def _verificar_admin_token(token: Optional[str]) -> None:
+    if not ADMIN_TOKEN:
+        raise HTTPException(
+            status_code=503,
+            detail="Panel de administración deshabilitado: falta configurar ADMIN_TOKEN en el servidor.",
+        )
+    if not token or not secrets.compare_digest(token, ADMIN_TOKEN):
+        raise HTTPException(status_code=401, detail="Token de administración inválido.")
+
 
 # AQUI ESTA EL CAMBIO DE CORS APLICADO
 CORS_ORIGINS = [
@@ -810,6 +857,7 @@ async def buscar_soluciones(payload: BusquedaRequest, request: Request):
 
     ip = request.client.host if request.client else "desconocida"
     if not _check_rate_limit(ip):
+        _analytics["busquedas_rechazadas_rate_limit"] += 1
         raise HTTPException(
             status_code=429,
             detail="Demasiadas búsquedas en poco tiempo. Espera un minuto e intenta de nuevo.",
@@ -823,7 +871,10 @@ async def buscar_soluciones(payload: BusquedaRequest, request: Request):
     cacheado = _cache_get(cache_key)
     if cacheado is not None:
         print(f"[CACHE] Hit para '{query}' ({idioma}, pág. {pagina}), sin gastar cuota de IA/GitHub.")
+        _registrar_busqueda(query, desde_cache=True)
         return cacheado
+
+    _registrar_busqueda(query, desde_cache=False)
 
     # ---- RUTA CRAWL4AI: el query es una URL directa que NO es de GitHub ----
     # Una URL de GitHub (repo o perfil) se resuelve más rápido y sin depender
@@ -878,6 +929,7 @@ async def buscar_soluciones(payload: BusquedaRequest, request: Request):
 
         # `ia` ya fue validado como no-None arriba, así que esta ficha
         # siempre viene de una respuesta real de IA (nunca del fallback).
+        _analytics["fichas_con_ia"] += 1
         _cache_set(cache_key, [ficha])
         return [ficha]
 
@@ -917,6 +969,13 @@ async def buscar_soluciones(payload: BusquedaRequest, request: Request):
         fichas = await asyncio.gather(*(procesar(e) for e in extraidos))
         # Filtra cualquier None accidental
         fichas = [f for f in fichas if f]
+
+        for f in fichas:
+            propuesta = (f.get("propuesta_valor") or "").lower()
+            if "pendiente" in propuesta or "pending" in propuesta:
+                _analytics["fichas_fallback"] += 1
+            else:
+                _analytics["fichas_con_ia"] += 1
 
         # Guardado automático en Google Sheets (una fila por ficha; no bloquea).
         async def _guardar_ficha(ficha):
@@ -998,6 +1057,8 @@ async def generar_instalador(payload: InstaladorRequest):
     except ValueError:
         raise HTTPException(status_code=400, detail="repo_url inválida.")
 
+    _analytics["instaladores_generados"] += 1
+
     nombre_archivo = "".join(
         c for c in (payload.nombre or "instalador") if c.isalnum() or c in ("-", "_")
     ) or "instalador"
@@ -1011,6 +1072,40 @@ async def generar_instalador(payload: InstaladorRequest):
             "Content-Disposition": f'attachment; filename="instalar-{nombre_archivo}.{extension}"'
         },
     )
+
+
+# ---------------------------------------------------------------------------
+# Panel de administración: solo lectura, protegido por token, sin exponer
+# nada del panel en el frontend público. Devuelve exclusivamente contadores
+# agregados (nunca IPs, nunca texto de resultados, nunca datos por persona).
+# ---------------------------------------------------------------------------
+@app.get("/api/admin/stats")
+async def admin_stats(token: Optional[str] = None):
+    _verificar_admin_token(token)
+    a = _analytics
+    total = a["busquedas_totales"]
+    cache_hit_rate = (a["cache_hits"] / total) if total else 0.0
+    return {
+        "uptime_seconds": round(time.time() - a["started_at"]),
+        "busquedas_totales": total,
+        "cache_hits": a["cache_hits"],
+        "cache_hit_rate": round(cache_hit_rate, 3),
+        "cache_size": len(_search_cache),
+        "cache_ttl_seconds": SEARCH_CACHE_TTL_SECONDS,
+        "instaladores_generados": a["instaladores_generados"],
+        "busquedas_rechazadas_rate_limit": a["busquedas_rechazadas_rate_limit"],
+        "fichas_con_ia": a["fichas_con_ia"],
+        "fichas_fallback": a["fichas_fallback"],
+        "top_queries": a["top_queries"].most_common(15),
+        "config": {
+            "ai_provider": AI_PROVIDER,
+            "ai_model": AI_MODEL,
+            "ai_fallback_provider": AI_FALLBACK_PROVIDER or None,
+            "ai_concurrency": AI_CONCURRENCY,
+            "rate_limit_max_peticiones": RATE_LIMIT_MAX_PETICIONES,
+            "rate_limit_ventana_segundos": RATE_LIMIT_VENTANA_SEGUNDOS,
+        },
+    }
 
 
 if __name__ == "__main__":

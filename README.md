@@ -127,6 +127,7 @@ All in `backend/.env.example`:
 | `RATE_LIMIT_MAX_PETICIONES` / `RATE_LIMIT_VENTANA_SEGUNDOS` | no | per-IP search rate limit (default 10 per 5 min) |
 | `GITHUB_TOKEN` | strongly recommended | 60 req/hour without one vs. **5,000/hour** with a [read-only token](https://github.com/settings/tokens) — a single search already uses ~13 requests |
 | `CORS_ORIGINS` | no | comma-separated allowed origins |
+| `ADMIN_TOKEN` | no | enables `GET /api/admin/stats` (aggregate-only usage counters: total searches, cache hit rate, AI vs. fallback ratio, top queries). Unset by default — the endpoint returns `503` until you set one. See [`frontend/public/admin.html`](frontend/public/admin.html) for the tiny token-gated dashboard that reads it (open it with `?api=<your-backend-url>`). |
 
 Frontend: `VITE_API_URL` in `frontend/.env.example`. **Paste only the bare URL** — see [Lessons learned](#lessons-learned).
 

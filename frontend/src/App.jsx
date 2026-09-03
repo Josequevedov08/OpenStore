@@ -586,7 +586,15 @@ export default function App() {
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
-    guardarJSON(THEME_KEY, theme);
+    // Guardado como string plano (no vía guardarJSON/JSON.stringify): el
+    // script anti-parpadeo de index.html y la lectura inicial de este mismo
+    // estado (arriba) comparan el valor crudo de localStorage contra
+    // 'light'/'dark', así que debe guardarse tal cual, sin comillas de JSON.
+    try {
+      localStorage.setItem(THEME_KEY, theme);
+    } catch {
+      // Almacenamiento no disponible: no es crítico, seguimos en memoria.
+    }
   }, [theme]);
 
   // "Despierta" el backend gratuito apenas se carga la página (fire-and-

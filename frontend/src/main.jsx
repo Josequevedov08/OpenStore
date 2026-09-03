@@ -8,3 +8,13 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <App />
   </React.StrictMode>,
 )
+
+// Registro del service worker (PWA): solo en producción y solo si el
+// navegador lo soporta. En dev lo omitimos para no cachear el HMR de Vite.
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch((err) => {
+      console.warn('[PWA] No se pudo registrar el service worker:', err)
+    })
+  })
+}

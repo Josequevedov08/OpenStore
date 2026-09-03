@@ -40,11 +40,12 @@
     <p>Your search query is processed by those third-party APIs under their own privacy terms: see <a href="https://ai.google.dev/gemini-api/terms" target="_blank" rel="noopener">Google's Gemini API terms</a> and <a href="https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement" target="_blank" rel="noopener">GitHub's Privacy Statement</a>.</p>
 
     <h2>3. What we store on our own servers</h2>
-    <p>By default: nothing tied to you. We don't run analytics, we don't set tracking cookies, and there's no database of your searches.</p>
+    <p>Nothing tied to you personally. We don't set tracking cookies, we don't run any third-party analytics service (no Google Analytics, no Meta Pixel, nothing that profiles you across sites), and there's no database of your searches or your IP address.</p>
+    <p>What we <em>do</em> keep, in memory only (wiped every time the server restarts, never written to disk): plain aggregate counters for capacity planning — total number of searches, cache hit rate, how many results were AI-processed vs. fallback, and a short list of the most-repeated search terms. None of it is tied to an IP, a session, or a person — it's the same kind of number a physical store keeps on a manual tally counter by the door. These counters are visible only through a token-protected admin endpoint the operator controls; there's no public dashboard.</p>
     <p>The codebase includes an optional, currently-inactive integration that can log generated results to a Google Sheet for the operator's own recordkeeping — it only activates if the operator manually configures credentials for it. If it's ever enabled, it stores repository data and AI-generated text, not anything that identifies you personally.</p>
 
     <h2>4. What's stored in your browser</h2>
-    <p>Only one thing, using your browser's <code>localStorage</code>: your EN/ES language preference. It never leaves your device and isn't sent to us.</p>
+    <p>Everything here uses your browser's <code>localStorage</code>, stays on your device, and is never sent to us: your EN/ES language preference, your light/dark theme choice, your recent searches, your favorited repositories, your comparison selections, and your installer download history. You can clear all of it at any time from your browser's site settings.</p>
 
     <h2>5. The Smart Installer</h2>
     <p>When you download an installer script, the request includes the repository's URL and the AI-derived install/start commands — no personal data. The script itself runs entirely on your own machine; nothing about what it does locally (cloning, installing, running) is sent back to us.</p>
@@ -75,11 +76,12 @@
     <p>Tu búsqueda es procesada por esas APIs de terceros bajo sus propios términos de privacidad: consulta los <a href="https://ai.google.dev/gemini-api/terms" target="_blank" rel="noopener">términos de la API de Gemini de Google</a> y la <a href="https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement" target="_blank" rel="noopener">Declaración de Privacidad de GitHub</a>.</p>
 
     <h2>3. Qué guardamos en nuestros propios servidores</h2>
-    <p>Por defecto: nada asociado a ti. No usamos analítica, no ponemos cookies de rastreo, y no existe una base de datos de tus búsquedas.</p>
+    <p>Nada asociado a ti personalmente. No ponemos cookies de rastreo, no usamos ningún servicio de analítica de terceros (nada de Google Analytics, Meta Pixel, ni nada que te perfile entre sitios), y no existe una base de datos de tus búsquedas ni de tu dirección IP.</p>
+    <p>Lo que sí guardamos, solo en memoria (se borra cada vez que el servidor se reinicia, nunca se escribe a disco): contadores agregados simples para planificar capacidad — número total de búsquedas, porcentaje de aciertos de caché, cuántos resultados fueron procesados por IA frente a los de respaldo, y una lista corta de los términos de búsqueda más repetidos. Nada de eso está asociado a una IP, una sesión o una persona — es el mismo tipo de número que una tienda física lleva en un contador manual junto a la puerta. Estos contadores solo son visibles a través de un endpoint de administración protegido por token que controla quien opera el servicio; no existe un panel público.</p>
     <p>El código incluye una integración opcional, actualmente inactiva, que puede registrar los resultados generados en una hoja de Google para el registro propio de quien opera el servicio — solo se activa si esa persona configura manualmente credenciales para ello. Si alguna vez se activa, guarda datos del repositorio y texto generado por IA, no algo que te identifique personalmente.</p>
 
     <h2>4. Qué se guarda en tu navegador</h2>
-    <p>Solo una cosa, usando el <code>localStorage</code> de tu navegador: tu preferencia de idioma EN/ES. Nunca sale de tu dispositivo ni nos llega a nosotros.</p>
+    <p>Todo esto usa el <code>localStorage</code> de tu navegador, se queda en tu dispositivo y nunca nos llega: tu preferencia de idioma EN/ES, tu elección de tema claro/oscuro, tus búsquedas recientes, tus repositorios favoritos, tu selección para comparar y tu historial de instaladores descargados. Puedes borrar todo esto cuando quieras desde la configuración del sitio en tu navegador.</p>
 
     <h2>5. El Instalador Inteligente</h2>
     <p>Al descargar un script de instalación, la petición incluye la URL del repositorio y los comandos de instalación/arranque extraídos por la IA — sin datos personales. El script en sí corre completamente en tu propia máquina; nada de lo que hace localmente (clonar, instalar, ejecutar) nos llega de vuelta.</p>
