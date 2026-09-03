@@ -209,8 +209,19 @@ async function runTest() {
   const t0 = Date.now();
   const elapsed = () => ((Date.now() - t0) / 1000).toFixed(1) + 's';
 
+  // Paso 0: servidor de comparación en OTRA infraestructura (Vercel, no
+  // Render). Si esto funciona pero el paso 1 falla, el problema es
+  // específico de Render/tu ruta hacia él, no de tu red en general.
+  const s0 = addStep('Probando un servidor de comparación (Vercel)…');
+  try {
+    const r = await fetch('/api/ping');
+    finishStep(s0, r.ok, `HTTP ${r.status} · ${elapsed()}`);
+  } catch (e) {
+    finishStep(s0, false, e.message);
+  }
+
   // Paso 1: salud del servidor
-  const s1 = addStep('Conectando al servidor (/health)…');
+  const s1 = addStep('Conectando al servidor principal (Render, /health)…');
   let healthOk = false;
   try {
     const r = await fetch(BASE + '/health');
@@ -219,7 +230,7 @@ async function runTest() {
     finishStep(s1, r.ok, `HTTP ${r.status} · ${elapsed()}`);
   } catch (e) {
     finishStep(s1, false, e.message);
-    showResult(false, 'No se pudo ni conectar al servidor', `Error de red: ${e.name}: ${e.message}\n\nEsto normalmente significa que algo en tu conexión (antivirus, VPN, red del trabajo/escuela, firewall) está bloqueando la conexión a onrender.com — no es un problema de la app en sí.`);
+    showResult(false, 'No se pudo conectar al servidor principal (Render)', `Error de red: ${e.name}: ${e.message}\n\nMira el paso de arriba ("servidor de comparación"): si ESE sí dio ✓ verde, el problema es específico de Render o de la ruta de tu red hacia Render — no de tu conexión en general. Si también falló, es algo más amplio (tu red/ISP).`);
     resetBtn();
     return;
   }
