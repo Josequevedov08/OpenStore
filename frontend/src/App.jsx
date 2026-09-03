@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { LayoutGrid, List, Star, Languages, AlertTriangle } from 'lucide-react';
+import { LayoutGrid, List, Star, Languages, AlertTriangle, Bot } from 'lucide-react';
 import KineticGrid from './components/ui/kinetic-grid';
 import PromptInput from './components/ui/prompt-input';
 import ToggleGroup, { Toggle } from './components/ui/toggle-group';
@@ -23,11 +23,15 @@ const STRINGS = {
       'The direct bridge between technical GitHub repositories and your business. Search for any feature you need.',
     placeholder: 'Search for a chatbot, a CRM, etc...',
     searchBtn: 'Search',
-    stats: ['Active Repositories', 'Categories', 'Installs Today', 'Uptime'],
+    searchHint: 'Search by keyword, paste a repo URL, or use @username to browse someone\'s repos.',
+    statFound: 'Found',
+    statStars: 'Combined Stars',
+    statLangs: 'Languages',
     grid: 'Grid',
     list: 'List',
-    loading: 'Searching for solutions…',
+    loading: 'Searching all of GitHub…',
     viewDetails: 'Get',
+    pending: 'Analysis pending',
     error: "Couldn't reach the server. Please try again in a moment.",
     noResults: 'No results found. Try a different search.',
   },
@@ -37,17 +41,32 @@ const STRINGS = {
       'El puente directo entre los repositorios técnicos de GitHub y tu negocio. Busca cualquier funcionalidad.',
     placeholder: 'Busca un chatbot, un CRM, etc...',
     searchBtn: 'Buscar',
-    stats: ['Repositorios Activos', 'Categorías', 'Instalaciones Hoy', 'Uptime'],
+    searchHint: 'Busca por palabra clave, pega la URL de un repo, o usa @usuario para ver sus repos.',
+    statFound: 'Encontrados',
+    statStars: 'Estrellas Totales',
+    statLangs: 'Lenguajes',
     grid: 'Grid',
     list: 'Lista',
-    loading: 'Buscando soluciones…',
+    loading: 'Buscando en todo GitHub…',
     viewDetails: 'Instalar',
+    pending: 'Análisis pendiente',
     error: 'No se pudo contactar al servidor. Intenta de nuevo en un momento.',
     noResults: 'Sin resultados. Prueba con otra búsqueda.',
   },
 };
 
-const GLOBAL_STAT_VALUES = ['+20,430', '+25', '1,204', '99.9%'];
+// Prefijo que el backend antepone cuando la IA no pudo procesar el repo
+// (sin API key, cuota agotada, etc.). Lo detectamos para mostrar un badge
+// en vez de mezclarlo con el texto de la descripción.
+const PENDING_RE = /^(?:🤖\s*)?(?:Analysis pending|Análisis pendiente)\.?\s*/i;
+
+function stripPendingTag(text) {
+  return (text || '').replace(PENDING_RE, '');
+}
+
+function isPending(text) {
+  return PENDING_RE.test(text || '');
+}
 
 // Formatea estrellas estilo GitHub: 12400 -> 12.4k, 850 -> 850
 function fmtStars(v) {
@@ -77,9 +96,20 @@ function LanguageSwitch({ idioma, onChange }) {
   );
 }
 
+function PendingBadge({ label }) {
+  return (
+    <span className="mb-2 inline-flex w-fit items-center gap-1 rounded-full bg-amber-400/10 px-2.5 py-0.5 text-xs font-medium text-amber-300">
+      <Bot className="h-3 w-3" />
+      {label}
+    </span>
+  );
+}
+
 function Card({ item, viewMode, onOpen, t }) {
   const isList = viewMode === 'list';
   const stars = fmtStars(item.estrellas);
+  const pending = isPending(item.propuesta_valor);
+  const pitch = stripPendingTag(item.propuesta_valor);
 
   if (isList) {
     return (
@@ -92,9 +122,13 @@ function Card({ item, viewMode, onOpen, t }) {
           </div>
         </div>
 
-        <p className="hidden min-w-0 flex-1 truncate text-sm text-zinc-300 md:block">
-          {item.propuesta_valor}
-        </p>
+        {pending ? (
+          <PendingBadge label={t.pending} />
+        ) : (
+          <p className="hidden min-w-0 flex-1 truncate text-sm text-zinc-300 md:block">
+            {pitch}
+          </p>
+        )}
 
         <div className="flex shrink-0 items-center gap-3">
           <span className="flex items-center gap-1 text-sm text-amber-300">
@@ -127,7 +161,8 @@ function Card({ item, viewMode, onOpen, t }) {
         >
           {item.titulo_comercial}
         </h2>
-        <ExpandablePitch text={item.propuesta_valor} className="mt-2" />
+        {pending && <PendingBadge label={t.pending} />}
+        <ExpandablePitch text={pitch} className="mt-2" />
 
         {Array.isArray(item.requisitos_externos) && item.requisitos_externos.length > 0 && (
           <ul className="mt-4 flex flex-col gap-1.5">
@@ -181,10 +216,19 @@ export default function App() {
     }
   }, [idioma]);
 
-  const globalStats = useMemo(
-    () => t.stats.map((label, i) => ({ label, value: GLOBAL_STAT_VALUES[i] })),
-    [t]
-  );
+  // Métricas reales derivadas del último batch de resultados (nada de
+  // números inventados): repos encontrados, estrellas combinadas y
+  // cantidad de lenguajes distintos detectados.
+  const searchStats = useMemo(() => {
+    if (resultados.length === 0) return null;
+    const totalStars = resultados.reduce((acc, r) => acc + (Number(r.estrellas) || 0), 0);
+    const langs = new Set(resultados.map((r) => r.lenguaje_principal).filter(Boolean));
+    return [
+      { label: t.statFound, value: `${resultados.length}` },
+      { label: t.statStars, value: fmtStars(totalStars) },
+      { label: t.statLangs, value: `${langs.size}` },
+    ];
+  }, [resultados, t]);
 
   const limit = viewMode === 'grid' ? 9 : 10;
   const totalPages = Math.max(1, Math.ceil(resultados.length / limit));
@@ -240,18 +284,21 @@ export default function App() {
           </p>
 
           {/* Buscador */}
-          <div className="relative flex w-full items-center justify-center overflow-hidden py-4">
+          <div className="relative flex w-full flex-col items-center justify-center overflow-hidden py-4">
             <div className="w-full max-w-2xl p-4">
               <PromptInput onSubmit={handleSearch} placeholder={t.placeholder} submitLabel={t.searchBtn} />
             </div>
+            <p className="-mt-1 max-w-xl text-center text-xs text-zinc-500">{t.searchHint}</p>
           </div>
 
-          {/* Tarjetas de estadísticas globales */}
-          <div className="grid w-full grid-cols-2 gap-4 py-6 md:grid-cols-4">
-            {globalStats.map((s) => (
-              <StatisticCard1 key={s.label} label={s.label} value={s.value} />
-            ))}
-          </div>
+          {/* Métricas reales del último batch de resultados (solo si hay búsqueda) */}
+          {searchStats && (
+            <div className="grid w-full grid-cols-3 gap-4 py-6">
+              {searchStats.map((s) => (
+                <StatisticCard1 key={s.label} label={s.label} value={s.value} />
+              ))}
+            </div>
+          )}
 
           {/* Selector de vista */}
           <div className="flex w-full justify-end py-6">

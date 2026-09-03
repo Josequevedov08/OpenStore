@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { X, Star, Check, GitBranch, AlertCircle, GitPullRequest, Code2 } from "lucide-react";
+import { X, Star, Check, GitBranch, AlertCircle, GitPullRequest, Code2, Clock } from "lucide-react";
 import { GithubIcon } from "./modal-shared";
 
 interface ModalProps {
@@ -18,7 +18,6 @@ interface ModalProps {
     imagen_url?: string;
     autor?: string;
     licencia?: string;
-    version?: string;
     forks?: number;
     issues_abiertos?: number;
     pull_requests?: number;
@@ -48,7 +47,7 @@ const MODAL_STRINGS = {
     requirements: "External Requirements",
     author: "Author",
     license: "License",
-    version: "Version",
+    lastCommit: "Last Commit",
     install: "Install",
     viewGithub: "View on GitHub",
   },
@@ -63,7 +62,7 @@ const MODAL_STRINGS = {
     requirements: "Requisitos externos",
     author: "Autor",
     license: "Licencia",
-    version: "Versión",
+    lastCommit: "Último Commit",
     install: "Instalar",
     viewGithub: "Ver en GitHub",
   },
@@ -90,6 +89,7 @@ export default function Modal({ proyecto, onClose, idioma = "en" }: ModalProps) 
     { icon: GitBranch, label: s.forks, value: proyecto.forks ?? 0 },
     { icon: GitPullRequest, label: s.prs, value: proyecto.pull_requests ?? 0 },
     { icon: Code2, label: s.lang, value: proyecto.lenguaje_principal ?? "—" },
+    { icon: Clock, label: s.lastCommit, value: proyecto.ultima_actualizacion ?? "—" },
   ];
 
   return (
@@ -139,8 +139,8 @@ export default function Modal({ proyecto, onClose, idioma = "en" }: ModalProps) 
             {proyecto.propuesta_valor}
           </p>
 
-          {/* Grid de estadísticas compacto (Issues, Forks, PRs, Lenguaje) */}
-          <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {/* Grid de estadísticas compacto (Issues, Forks, PRs, Lenguaje, Último Commit) */}
+          <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-5">
             {metrics.map((m, i) => (
               <div
                 key={i}
@@ -161,7 +161,6 @@ export default function Modal({ proyecto, onClose, idioma = "en" }: ModalProps) 
           <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2 border-y border-white/10 py-4 text-sm text-zinc-400">
             <span><span className="text-zinc-500">{s.author}: </span><span className="text-zinc-300">{proyecto.autor}</span></span>
             <span><span className="text-zinc-500">{s.license}: </span><span className="text-zinc-300">{proyecto.licencia}</span></span>
-            <span><span className="text-zinc-500">{s.version}: </span><span className="text-zinc-300">{proyecto.version}</span></span>
             <span className="flex items-center gap-1.5 text-amber-300">
               <Star className="h-4 w-4 fill-amber-300" />
               {formatStars(proyecto.estrellas)}

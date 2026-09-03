@@ -175,7 +175,12 @@ def extraer_repo_data(repo: dict) -> dict:
 # ---------------------------------------------------------------------------
 import re
 
-URL_RE = re.compile(r"github\.com/([^/\s]+)/([^/\s?#]+)")
+URL_RE = re.compile(r"github\.com/([^/\s]+)/([^/\s?#]+)(?:/|$)")
+# URL a un perfil/usuario de GitHub (sin segundo segmento de ruta), ej:
+# "https://github.com/torvalds" o "github.com/torvalds/"
+PROFILE_URL_RE = re.compile(r"^https?://github\.com/([^/\s?#]+)/?$", re.IGNORECASE)
+# Atajo "@usuario" para buscar los repos de una persona/organización.
+USERNAME_SHORTHAND_RE = re.compile(r"^@([A-Za-z0-9][A-Za-z0-9-]{0,38})$")
 
 
 async def buscar_repositorios(client: httpx.AsyncClient, query: str, per_page: int = 12) -> list:
@@ -193,7 +198,16 @@ async def buscar_repositorios(client: httpx.AsyncClient, query: str, per_page: i
         except Exception as e:
             print(f"[FASE 1] URL repo falló, probando búsqueda normal: {e}")
 
-    # --- Ruta B: búsqueda normal (el filtro user: ya va dentro del query) ---
+    # --- Ruta A2: URL de perfil ("github.com/usuario") o atajo "@usuario" ---
+    # En ambos casos reescribimos la consulta al calificador `user:` que ya
+    # entiende la API de búsqueda de GitHub (Ruta B), para listar SUS repos
+    # ordenados por estrellas en vez de hacer una búsqueda de texto libre.
+    perfil = PROFILE_URL_RE.match(q) or USERNAME_SHORTHAND_RE.match(q)
+    if perfil:
+        q = f"user:{perfil.group(1)}"
+
+    # --- Ruta B: búsqueda normal en todo GitHub (soporta calificadores como
+    # "user:usuario", "language:python", "stars:>100", etc.) ---
     params = {
         "q": q,
         "sort": "stars",
@@ -478,26 +492,42 @@ async def procesar_readme_con_ia(
 # ---------------------------------------------------------------------------
 # Fase 4: Empaquetado
 # ---------------------------------------------------------------------------
+# Rangos Unicode de escrituras no latinas (CJK, cirílico, árabe, hangul...).
+# Si la descripción cruda de GitHub cae aquí y la IA no está disponible para
+# traducirla, NO la mostramos crudo: usamos un texto genérico en su lugar.
+_NON_LATIN_SCRIPT_RE = re.compile(
+    "[぀-ヿ㐀-䶿一-鿿가-힯Ѐ-ӿ؀-ۿ]"
+)
+
+
+def _contiene_script_no_latino(texto: str) -> bool:
+    return bool(texto) and bool(_NON_LATIN_SCRIPT_RE.search(texto))
+
+
 def construir_ficha(
     repo_data: dict, ia_data: Optional[dict], readme: str, idioma: str = DEFAULT_IDIOMA
 ) -> dict:
     """Une los datos crudos de GitHub con la ficha del LLM (o fallback)."""
     idioma = "es" if idioma == "es" else "en"
     if not ia_data:
-        # Fallback sin IA: derivamos algo usable del repo real (sin texto crudo
-        # en otro idioma), aunque el LLM no esté disponible.
+        # Fallback sin IA: derivamos algo usable del repo real, sin exponer
+        # texto crudo en un idioma/escritura que el usuario no pueda leer.
         if idioma == "es":
             default_desc = "Solución open-source lista para tu negocio."
-            tag = "[No procesado por IA] "
+            no_latin_desc = "Descripción original no disponible en este idioma por ahora."
+            tag = "🤖 Análisis pendiente. "
             caracteristicas = ["Integración lista para usar", "Código abierto", "Comunidad activa"]
             requisitos = ["Cuenta de GitHub", f"Entorno {repo_data['language']}"]
         else:
             default_desc = "Open-source solution ready for your business."
-            tag = "[Not processed by AI] "
+            no_latin_desc = "Original description not available in this language yet."
+            tag = "🤖 Analysis pending. "
             caracteristicas = ["Ready-to-use integration", "Open source", "Active community"]
             requisitos = ["GitHub account", f"{repo_data['language']} environment"]
 
         raw_desc = repo_data["description"] or default_desc
+        if _contiene_script_no_latino(raw_desc):
+            raw_desc = no_latin_desc
         # Truncamos a 400 chars para no romper Sheets (límite 50k/célula) ni la UI.
         truncated = raw_desc if len(raw_desc) <= 400 else raw_desc[:397] + "..."
         ia_data = {
@@ -524,7 +554,6 @@ def construir_ficha(
         ),
         "autor": repo_data.get("owner") or "",
         "licencia": repo_data.get("license") or "MIT",
-        "version": f"v1.0.0",
         "forks": repo_data.get("forks_count", 0),
         # open_issues_count incluye PRs en GitHub; lo aproximamos.
         "pull_requests": max(0, repo_data.get("open_issues_count", 0) // 4),
