@@ -15,7 +15,7 @@
   @media (max-width: 760px) { .steps { grid-template-columns: 1fr 1fr; } }
   @media (max-width: 480px) { .steps { grid-template-columns: 1fr; } }
   .step {
-    border: 1px solid rgba(255,255,255,.08); background: #1a1a1a;
+    border: 1px solid var(--border); background: var(--surface);
     border-radius: 16px; padding: 18px 16px; position: relative;
   }
   .step .num {
@@ -26,11 +26,11 @@
     margin-bottom: 12px;
   }
   .step svg { display: block; margin-bottom: 10px; }
-  .step h3 { color: #fff; font-size: 14px; margin: 0 0 6px; }
-  .step p { font-size: 12.5px; margin: 0; color: #a1a1aa; }
+  .step h3 { color: var(--text); font-size: 14px; margin: 0 0 6px; }
+  .step p { font-size: 12.5px; margin: 0; color: var(--text-dim); }
 
   .flow {
-    border: 1px solid rgba(255,255,255,.08); background: #1a1a1a;
+    border: 1px solid var(--border); background: var(--surface);
     border-radius: 16px; padding: 22px; margin: 24px 0;
   }
   .flow-row { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
@@ -41,8 +41,8 @@
   }
   .flow-dot.warn { background: #f59e0b; }
   .flow-dot.done { background: #22c55e; }
-  .flow-label { font-size: 13.5px; color: #d4d4d8; flex: 1; min-width: 0; }
-  .flow-branch { padding-left: 24px; border-left: 1px dashed rgba(255,255,255,.15); margin-left: 4px; }
+  .flow-label { font-size: 13.5px; color: var(--text-dim); flex: 1; min-width: 0; }
+  .flow-branch { padding-left: 24px; border-left: 1px dashed var(--border-strong); margin-left: 4px; }
 
   .extras {
     display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
@@ -51,13 +51,23 @@
   @media (max-width: 760px) { .extras { grid-template-columns: 1fr 1fr; } }
   @media (max-width: 480px) { .extras { grid-template-columns: 1fr; } }
   .extra {
-    border: 1px solid rgba(255,255,255,.08); background: #1a1a1a;
+    border: 1px solid var(--border); background: var(--surface);
     border-radius: 14px; padding: 16px; display: flex; gap: 12px; align-items: flex-start;
   }
   .extra svg { flex-shrink: 0; margin-top: 1px; }
-  .extra h3 { color: #fff; font-size: 13.5px; margin: 0 0 4px; }
-  .extra p { font-size: 12px; margin: 0; color: #a1a1aa; }
+  .extra h3 { color: var(--text); font-size: 13.5px; margin: 0 0 4px; }
+  .extra p { font-size: 12px; margin: 0; color: var(--text-dim); }
 </style>
+<script>
+  (function () {
+    try {
+      var t = localStorage.getItem("appstore-theme");
+      if (t === "light" || t === "dark") {
+        document.documentElement.setAttribute("data-theme", t);
+      }
+    } catch (e) {}
+  })();
+</script>
 </head>
 <body>
 <div class="topbar">
@@ -244,6 +254,13 @@
       </div>
     </div>
   </div>
+
+  <nav class="sitefooter">
+    <a href="/manual.html" data-lang-en="How it works" data-lang-es="Cómo funciona">How it works</a>
+    <a href="/faq.html" data-lang-en="FAQ" data-lang-es="Preguntas Frecuentes">FAQ</a>
+    <a href="/terminos.html" data-lang-en="Terms &amp; Conditions" data-lang-es="Términos y Condiciones">Terms &amp; Conditions</a>
+    <a href="/privacidad.html" data-lang-en="Privacy Policy" data-lang-es="Política de Privacidad">Privacy Policy</a>
+  </nav>
 </main>
 
 <script src="/legal-shared.js"></script>

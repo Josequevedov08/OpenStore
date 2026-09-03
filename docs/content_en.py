@@ -274,6 +274,19 @@ CONTENT_EN = {
                 "dashboard. A variable renamed from a float-typed name to an int-only one left a decimal value "
                 "sitting in the dashboard, which would have crashed the process on the next restart. The fix "
                 "was defensive parsing that logs a warning and falls back to a default instead of raising.",
+                "<b>A URL query parameter must never decide where a secret gets sent.</b> The admin dashboard "
+                "(Section 5.4) originally read its backend URL from its own \"?api=\" parameter with no "
+                "validation, then sent the admin token there and persisted that host to localStorage. A link "
+                "built as \"&lt;real-domain&gt;/admin.html?api=https://attacker.example\" carried a genuine "
+                "domain and a valid padlock — nothing in the address bar would tip off the person opening it — "
+                "and the moment they submitted their token, the page's own client-side code handed it straight "
+                "to the attacker, with no exploit of the backend needed. The fix was a strict allow-list (the "
+                "production backend's own origin, or localhost for local development) checked against both the "
+                "URL parameter and anything already in localStorage; any other value is ignored outright and "
+                "never persisted. Admin or credential-bearing pages need to validate destination origins "
+                "against a hardcoded allow-list — a same-domain link can still turn the page itself into the "
+                "phishing delivery mechanism otherwise, and localStorage persistence extends the exposure "
+                "beyond the first click. See SECURITY.md for the full writeup.",
             ],
         },
         {

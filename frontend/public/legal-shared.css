@@ -1,9 +1,45 @@
-:root { color-scheme: dark; }
+/* Mismas variables de tema que la app principal (frontend/src/index.css),
+   para que estas páginas estáticas (manual/FAQ/términos/privacidad/admin)
+   respeten el tema oscuro/claro elegido ahí en vez de quedar fijas en
+   oscuro. [data-theme] lo aplica un script anti-parpadeo en el <head> de
+   cada página, antes del primer dibujo. */
+:root {
+  color-scheme: dark;
+  --bg: #121212;
+  --surface: #1a1a1a;
+  --surface-2: #161616;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.1);
+  --text: #ffffff;
+  --text-dim: #a1a1aa;
+  --text-dimmer: #71717a;
+  --code-bg: #0f0f0f;
+  --notice-border: rgba(251, 191, 36, 0.25);
+  --notice-bg: rgba(251, 191, 36, 0.06);
+  --notice-text: #fcd34d;
+  --accent: #60a5fa;
+}
+[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --surface-2: #f0f1f4;
+  --border: rgba(15, 23, 42, 0.1);
+  --border-strong: rgba(15, 23, 42, 0.16);
+  --text: #14171f;
+  --text-dim: #52525b;
+  --text-dimmer: #71717a;
+  --code-bg: #e9eaee;
+  --notice-border: rgba(217, 119, 6, 0.3);
+  --notice-bg: rgba(217, 119, 6, 0.08);
+  --notice-text: #92400e;
+  --accent: #2563eb;
+}
 * { box-sizing: border-box; }
 body {
   margin: 0;
-  background: #121212;
-  color: #d4d4d8;
+  background: var(--bg);
+  color: var(--text-dim);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
   line-height: 1.6;
 }
@@ -11,41 +47,51 @@ body {
   position: sticky; top: 0; z-index: 10;
   display: flex; align-items: center; justify-content: space-between;
   padding: 14px 20px;
-  background: rgba(18,18,18,.85);
+  background: color-mix(in srgb, var(--bg) 85%, transparent);
   backdrop-filter: blur(8px);
-  border-bottom: 1px solid rgba(255,255,255,.08);
+  border-bottom: 1px solid var(--border);
 }
 .topbar a.brand {
-  color: #fff; text-decoration: none; font-weight: 800; font-size: 15px;
+  color: var(--text); text-decoration: none; font-weight: 800; font-size: 15px;
   display: flex; align-items: center; gap: 8px;
 }
 .topbar a.brand:before { content: "←"; opacity: .6; }
 .langswitch {
-  display: inline-flex; gap: 2px; border: 1px solid rgba(255,255,255,.1);
-  background: #1a1a1a; border-radius: 10px; padding: 4px;
+  display: inline-flex; gap: 2px; border: 1px solid var(--border);
+  background: var(--surface); border-radius: 10px; padding: 4px;
 }
 .langswitch button {
-  border: none; background: transparent; color: #a1a1aa; font-weight: 700;
+  border: none; background: transparent; color: var(--text-dim); font-weight: 700;
   font-size: 12px; padding: 6px 12px; border-radius: 7px; cursor: pointer;
   letter-spacing: .03em;
 }
-.langswitch button.active { background: rgba(255,255,255,.1); color: #fff; }
+.langswitch button.active { background: var(--border-strong); color: var(--text); }
 main { max-width: 760px; margin: 0 auto; padding: 40px 20px 100px; }
-h1 { font-size: 32px; font-weight: 800; color: #fff; margin: 0 0 6px; }
-.updated { color: #71717a; font-size: 13px; margin-bottom: 32px; }
-h2 { font-size: 18px; font-weight: 700; color: #fff; margin: 36px 0 12px; }
-p, li { color: #a1a1aa; font-size: 15px; }
+h1 { font-size: 32px; font-weight: 800; color: var(--text); margin: 0 0 6px; }
+.updated { color: var(--text-dimmer); font-size: 13px; margin-bottom: 32px; }
+h2 { font-size: 18px; font-weight: 700; color: var(--text); margin: 36px 0 12px; }
+p, li { color: var(--text-dim); font-size: 15px; }
 ul { padding-left: 20px; }
 li { margin-bottom: 6px; }
-a { color: #60a5fa; }
+a { color: var(--accent); }
+code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
 .notice {
-  border: 1px solid rgba(251,191,36,.25); background: rgba(251,191,36,.06);
-  border-radius: 12px; padding: 14px 16px; font-size: 13.5px; color: #fcd34d;
+  border: 1px solid var(--notice-border); background: var(--notice-bg);
+  border-radius: 12px; padding: 14px 16px; font-size: 13.5px; color: var(--notice-text);
   margin-bottom: 28px;
 }
 .card {
-  border: 1px solid rgba(255,255,255,.08); background: #1a1a1a;
+  border: 1px solid var(--border); background: var(--surface);
   border-radius: 14px; padding: 18px 20px; margin: 16px 0;
 }
 [data-lang-block] { display: none; }
 [data-lang-block].active { display: block; }
+
+.sitefooter {
+  max-width: 760px; margin: 48px auto 0; padding: 20px 20px 0;
+  border-top: 1px solid var(--border);
+  display: flex; flex-wrap: wrap; gap: 8px 22px;
+  font-size: 13px;
+}
+.sitefooter a { color: var(--text-dim); text-decoration: none; }
+.sitefooter a:hover { color: var(--accent); }

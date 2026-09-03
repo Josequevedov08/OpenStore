@@ -2,6 +2,16 @@
 
 High-level record of the work done on OpenStore, newest first. For the full commit-by-commit detail, see the git history.
 
+## 2026-09-03 (even later) — Theme sync across static pages, cross-page nav, security writeup
+
+### Fixed
+- **Light/dark theme was ignored on `manual.html`, `faq.html`, `terminos.html`, and `privacidad.html`** — they used a separate, dark-only stylesheet unrelated to the main app's theme, so switching to light mode on the homepage and then opening any of these pages silently dropped back to dark. `legal-shared.css` now shares the same CSS variables and light/dark values as the main app, and each page applies the saved theme before first paint (no flash), the same way `index.html` already did.
+
+### Added
+- **Cross-page footer navigation**: `manual.html`, `faq.html`, `terminos.html`, and `privacidad.html` now each link to all four pages from a shared footer, bilingual, instead of only being reachable from the homepage — no more back-and-forth to find one of these sections. `legal-shared.js` gained a small generic helper (`[data-lang-en]`/`[data-lang-es]` text swap) to support this without duplicating logic per page.
+- **`SECURITY.md`**: a vulnerability-reporting policy plus a public writeup of the admin-panel token-exfiltration issue fixed in the previous entry (severity, root cause, fix, and the underlying lesson).
+- Both documentation PDFs (`docs/OpenStore-Documentation-EN.pdf` / `docs/OpenStore-Documentacion-ES.pdf`) regenerated with that same lesson added to Section 9 (Known limitations and lessons learned): a URL query parameter must never decide where a secret is sent — admin/credential-bearing endpoints need a hardcoded origin allow-list, since even a same-domain link can otherwise turn the page itself into a phishing delivery mechanism.
+
 ## 2026-09-03 (later) — Admin panel token-exfiltration fix, manual update
 
 ### Fixed

@@ -296,6 +296,22 @@ CONTENT_ES = {
                 "enteros dejó un valor decimal esperando en el panel, lo cual habría tumbado el proceso en el "
                 "siguiente reinicio. La solución fue un parseo defensivo que registra una advertencia y cae a "
                 "un valor por defecto en vez de lanzar una excepción.",
+                "<b>Un parámetro de URL nunca debe decidir a dónde se envía un secreto.</b> El panel de "
+                "administración (Sección 5.4) originalmente leía la URL de su backend desde su propio "
+                "parámetro \"?api=\" sin validarlo, y luego enviaba el token de administración ahí y "
+                "persistía ese host en localStorage. Un enlace construido como "
+                "\"&lt;dominio-real&gt;/admin.html?api=https://atacante.example\" llevaba un dominio genuino "
+                "y un candado válido — nada en la barra de direcciones habría alertado a quien lo abriera — y "
+                "en el momento en que esa persona enviaba su token, el propio código del lado del cliente de "
+                "la página se lo entregaba directo al atacante, sin necesitar explotar el backend. La solución "
+                "fue una lista blanca estricta (el origen propio del backend de producción, o localhost solo "
+                "para desarrollo local) verificada tanto contra el parámetro de la URL como contra cualquier "
+                "valor ya guardado en localStorage; cualquier otro valor se ignora por completo y nunca se "
+                "persiste. Los endpoints de administración o que manejan credenciales deben validar los "
+                "orígenes de destino contra una lista blanca fija — un parámetro de URL no debe decidir el "
+                "destino de un secreto, porque incluso un enlace del mismo dominio puede convertir a la propia "
+                "página en el mecanismo de entrega de un phishing, y la persistencia en localStorage extiende "
+                "la exposición más allá del primer clic. Ver SECURITY.md para el detalle completo.",
             ],
         },
         {

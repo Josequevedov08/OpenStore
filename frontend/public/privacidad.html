@@ -6,6 +6,16 @@
 <title>OpenStore — Privacy Policy</title>
 <link rel="icon" href="/favicon.svg" />
 <link rel="stylesheet" href="/legal-shared.css" />
+<script>
+  (function () {
+    try {
+      var t = localStorage.getItem("appstore-theme");
+      if (t === "light" || t === "dark") {
+        document.documentElement.setAttribute("data-theme", t);
+      }
+    } catch (e) {}
+  })();
+</script>
 </head>
 <body>
 <div class="topbar">
@@ -95,6 +105,13 @@
     <h2>8. Contacto</h2>
     <p>¿Preguntas sobre tus datos? Contacta al dueño del proyecto vía <a href="https://github.com/Josequevedov08" target="_blank" rel="noopener">GitHub</a>.</p>
   </div>
+
+  <nav class="sitefooter">
+    <a href="/manual.html" data-lang-en="How it works" data-lang-es="Cómo funciona">How it works</a>
+    <a href="/faq.html" data-lang-en="FAQ" data-lang-es="Preguntas Frecuentes">FAQ</a>
+    <a href="/terminos.html" data-lang-en="Terms &amp; Conditions" data-lang-es="Términos y Condiciones">Terms &amp; Conditions</a>
+    <a href="/privacidad.html" data-lang-en="Privacy Policy" data-lang-es="Política de Privacidad">Privacy Policy</a>
+  </nav>
 </main>
 
 <script src="/legal-shared.js"></script>

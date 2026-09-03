@@ -8,20 +8,33 @@
 <link rel="stylesheet" href="/legal-shared.css" />
 <style>
   .faq-item {
-    border: 1px solid rgba(255,255,255,.08); background: #1a1a1a;
+    border: 1px solid var(--border); background: var(--surface);
     border-radius: 14px; margin-bottom: 10px; overflow: hidden;
   }
   .faq-item summary {
     cursor: pointer; list-style: none; padding: 16px 18px;
-    color: #fff; font-weight: 600; font-size: 14.5px;
+    color: var(--text); font-weight: 600; font-size: 14.5px;
     display: flex; align-items: center; justify-content: space-between; gap: 12px;
   }
   .faq-item summary::-webkit-details-marker { display: none; }
-  .faq-item summary:after { content: "+"; color: #71717a; font-size: 20px; flex-shrink: 0; }
+  .faq-item summary:after { content: "+"; color: var(--text-dimmer); font-size: 20px; flex-shrink: 0; }
   .faq-item[open] summary:after { content: "–"; }
-  .faq-item .a { padding: 0 18px 16px; font-size: 14px; color: #a1a1aa; }
-  .faq-item .a code { background: #0f0f0f; padding: 1px 5px; border-radius: 4px; }
+  .faq-item .a { padding: 0 18px 16px; font-size: 14px; color: var(--text-dim); }
+  .faq-item .a code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
 </style>
+<script>
+  // Aplica el tema guardado en la app principal ANTES del primer dibujo,
+  // para que estas páginas no "salten" a oscuro por defecto y luego
+  // cambien — misma lógica que index.html.
+  (function () {
+    try {
+      var t = localStorage.getItem("appstore-theme");
+      if (t === "light" || t === "dark") {
+        document.documentElement.setAttribute("data-theme", t);
+      }
+    } catch (e) {}
+  })();
+</script>
 </head>
 <body>
 <div class="topbar">
@@ -162,6 +175,13 @@
       <div class="a">Contacta al dueño del proyecto vía <a href="https://github.com/Josequevedov08" target="_blank" rel="noopener">GitHub</a>.</div>
     </details>
   </div>
+
+  <nav class="sitefooter">
+    <a href="/manual.html" data-lang-en="How it works" data-lang-es="Cómo funciona">How it works</a>
+    <a href="/faq.html" data-lang-en="FAQ" data-lang-es="Preguntas Frecuentes">FAQ</a>
+    <a href="/terminos.html" data-lang-en="Terms &amp; Conditions" data-lang-es="Términos y Condiciones">Terms &amp; Conditions</a>
+    <a href="/privacidad.html" data-lang-en="Privacy Policy" data-lang-es="Política de Privacidad">Privacy Policy</a>
+  </nav>
 </main>
 
 <script src="/legal-shared.js"></script>
