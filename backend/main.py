@@ -77,9 +77,8 @@ AI_API_KEY = os.getenv("AI_API_KEY", "")
 DEFAULT_MODELS = {
     "openai": "gpt-4o-mini",
     "anthropic": "claude-3-5-sonnet-latest",
-    # Free tier de Groq: 30 RPM / 14,400 peticiones por DÍA — mucho más
-    # generoso que cualquier capa gratuita de Gemini.
-    "groq": "llama-3.1-8b-instant",
+    # Free tier de Groq: rápido y generoso comparado con Gemini.
+    "groq": "openai/gpt-oss-20b",
     # "-lite" es más limitado en capacidad, pero su cuota gratuita diaria es
     # muchísimo más generosa (probamos 12 llamadas en paralelo sin fallos).
     # gemini-3.6-flash "normal" solo permite 20 peticiones/día en la capa
